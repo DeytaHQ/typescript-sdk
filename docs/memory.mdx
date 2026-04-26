@@ -1,0 +1,163 @@
+---
+title: Memory
+description: "Store, search, forget, and ask questions against namespaced memory."
+---
+
+The memory resource is available both at the top level (`deyta.memory`) and on
+a [namespace scope](/sdk/typescript/scoping) (`ns.remember(...)`, etc.). The
+scoped form is recommended for production code.
+
+## `remember`
+
+Store a memory in a namespace.
+
+<CodeGroup>
+```ts Top-level
+const result = await deyta.memory.remember({
+  namespace_id: "ns_123",
+  content: "Important information to remember",
+  title: "Optional title",
+  source: "optional-source",
+  metadata: { key: "value" },
+  ontology_id: "optional-ontology-id",
+});
+```
+
+```ts Scoped
+const ns = deyta.namespaces.scope("ns_123");
+const result = await ns.remember({
+  content: "Important information to remember",
+  title: "Optional title",
+  source: "optional-source",
+  metadata: { key: "value" },
+  ontology_id: "optional-ontology-id",
+});
+```
+</CodeGroup>
+
+### Result: `RememberResult`
+
+```ts
+{
+  document_id: string;
+  chunks_created: number;
+  entities_extracted: number;
+  relationships_created: number;
+}
+```
+
+## `recall`
+
+Search memories by query, optionally constrained to a time range.
+
+<CodeGroup>
+```ts Top-level
+const result = await deyta.memory.recall({
+  namespace_id: "ns_123",
+  query: "what do we know about the project?",
+  limit: 10,
+  mode: "hybrid", // "vector" | "graph" | "hybrid" | "all"
+  from: new Date("2026-04-01T00:00:00Z"),
+  until: "2026-04-30T23:59:59Z",
+});
+```
+
+```ts Scoped
+const result = await ns.recall({
+  query: "what do we know about the project?",
+  limit: 10,
+  mode: "hybrid",
+  from: new Date("2026-04-01T00:00:00Z"),
+  until: "2026-04-30T23:59:59Z",
+});
+```
+</CodeGroup>
+
+<Note>
+  `from` and `until` accept either a `Date` or an ISO-8601 string. The SDK
+  serializes them to the wire format expected by the API (`start_time` /
+  `end_time`).
+</Note>
+
+### Result: `RecallResult`
+
+```ts
+{
+  results: RecallMatch[];
+}
+
+interface RecallMatch {
+  document_id: string;
+  content: string;
+  score: number;
+  metadata?: Record<string, unknown>;
+}
+```
+
+## `ask`
+
+Ask a natural-language question; the gateway runs retrieval and answers.
+
+<CodeGroup>
+```ts Top-level
+const answer = await deyta.memory.ask({
+  namespace_id: "ns_123",
+  query: "What are the key project milestones?",
+  config: {
+    min_recall_limit: 3,
+    max_recall_limit: 20,
+    total_tokens_limit: 4_000,
+    enabled_tools: ["recall"],
+  },
+  from: new Date("2026-04-01T00:00:00Z"),
+  until: new Date("2026-04-30T23:59:59Z"),
+});
+```
+
+```ts Scoped
+const answer = await ns.ask({
+  query: "What are the key project milestones?",
+  config: {
+    min_recall_limit: 3,
+    max_recall_limit: 20,
+    total_tokens_limit: 4_000,
+    enabled_tools: ["recall"],
+  },
+});
+```
+</CodeGroup>
+
+### Result: `AskResult`
+
+```ts
+{
+  answer: string;
+  sources?: RecallMatch[];
+}
+```
+
+## `forget`
+
+Delete a stored document by ID.
+
+<CodeGroup>
+```ts Top-level
+const result = await deyta.memory.forget({
+  namespace_id: "ns_123",
+  document_id: "doc_456",
+});
+```
+
+```ts Scoped
+const result = await ns.forget({ document_id: "doc_456" });
+```
+</CodeGroup>
+
+### Result: `ForgetResult`
+
+```ts
+{
+  document_id: string;
+  deleted: boolean;
+}
+```

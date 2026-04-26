@@ -1,0 +1,83 @@
+---
+title: Cancellation and per-call options
+description: "AbortSignal, per-call timeout overrides, and ad-hoc request headers."
+---
+
+Every method accepts an optional second `RequestOptions` argument. It scopes
+behavior to a single call without disturbing the global client config.
+
+```ts
+interface RequestOptions {
+  signal?: AbortSignal;
+  timeout?: number;                  // per-call override (ms)
+  headers?: Record<string, string>;  // extra headers (Authorization is protected)
+}
+```
+
+## Cancellation with `AbortController`
+
+```ts
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 5_000);
+
+await deyta.memory.recall(
+  { namespace_id: "ns_123", query: "search" },
+  { signal: controller.signal },
+);
+```
+
+When the signal aborts, the in-flight request is cancelled and the SDK throws
+a `DeytaConnectionError`. See [Error handling](/sdk/typescript/errors#distinguishing-timeouts-from-real-network-errors)
+for distinguishing cancellation from network errors.
+
+## Per-call timeout
+
+Override the global timeout for a single call:
+
+```ts
+await deyta.memory.ask(
+  { namespace_id: "ns_123", query: "expensive question" },
+  { timeout: 60_000 }, // give this one call a full minute
+);
+```
+
+The per-call value replaces the global default for that request only.
+
+## Combined timeout + signal
+
+You can combine both. Either fires first wins.
+
+```ts
+const controller = new AbortController();
+document.querySelector("#cancel")?.addEventListener("click", () => {
+  controller.abort();
+});
+
+await deyta.memory.recall(input, {
+  signal: controller.signal,
+  timeout: 10_000,
+});
+```
+
+<Note>
+  Internally, the SDK merges the caller's signal with its own timeout via
+  `AbortSignal.any` (Node 20+, Bun, modern browsers). Either signal can abort
+  the request; previous SDK versions had a race where caller-supplied signals
+  silently disabled the SDK timeout — this is fixed in v0.2.0.
+</Note>
+
+## Custom headers
+
+Add ad-hoc headers like trace IDs or feature flags:
+
+```ts
+await deyta.memory.recall(input, {
+  headers: { "X-Trace-Id": "abc-123" },
+});
+```
+
+<Warning>
+  The `Authorization` header is protected — caller-supplied headers cannot
+  override the SDK-set bearer token. All other headers are merged after the
+  SDK's defaults, so callers win on conflicts.
+</Warning>

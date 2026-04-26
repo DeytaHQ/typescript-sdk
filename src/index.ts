@@ -1,9 +1,17 @@
 export { Deyta } from "./deyta.js";
-export type { DeyaConfig, PaginatedResult } from "./client.js";
-export { MemoryLakeError, MemoryLakeNetworkError } from "./errors.js";
-export type { ErrorCode } from "./errors.js";
 export type {
-  // Response types
+  DeytaConfig,
+  PaginatedResult,
+  RetryConfig,
+  SdkLogEvent,
+  SdkLogger,
+} from "./client.js";
+export { DeytaError, DeytaConnectionError } from "./errors.js";
+export type { ErrorCode } from "./errors.js";
+export { NamespaceScope, NamespaceIntegrationsScope } from "./resources/namespace-scope.js";
+export { SDK_VERSION } from "./version.js";
+export type {
+  // Response envelopes
   SuccessResponse,
   PaginatedResponse,
   ErrorResponseBody,
@@ -13,12 +21,22 @@ export type {
   // Namespace targeting
   NamespaceTarget,
 
+  // Time bounds
+  TimeBound,
+  TimeRange,
+
   // Memory
   RememberInput,
+  RememberResult,
   RecallInput,
+  RecallMode,
+  RecallMatch,
+  RecallResult,
   ForgetInput,
+  ForgetResult,
   AskInput,
   AskConfig,
+  AskResult,
 
   // Namespaces
   Namespace,
@@ -34,3 +52,4 @@ export type {
   StartConnectionResult,
   CompleteConnectionInput,
 } from "./types.js";
+export type { IterateParams } from "./pagination.js";

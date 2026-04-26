@@ -1,0 +1,66 @@
+---
+title: Namespaces
+description: "Create, list, fetch, iterate, and delete namespaces."
+---
+
+A namespace is the unit of memory isolation. Most applications create one per
+end-user, per tenant, or per project — and link it to your own identifier via
+`external_reference_id`.
+
+## Create
+
+```ts
+const ns = await deyta.namespaces.create({
+  name: "My Namespace",
+  description: "A namespace for my project",
+  external_reference_id: "my-app-user-123",
+});
+```
+
+## List + iterate
+
+<CodeGroup>
+```ts Single page
+const { data, pagination } = await deyta.namespaces.list({
+  page: 1,
+  page_size: 20,
+});
+```
+
+```ts All pages
+for await (const ns of deyta.namespaces.iterate({ page_size: 50 })) {
+  console.log(ns.id);
+}
+```
+</CodeGroup>
+
+`iterate` is an async generator that walks every page and yields one namespace
+at a time. It uses the same retry and cancellation policy as any other request.
+
+## Get
+
+```ts
+const ns = await deyta.namespaces.get("ns_123");
+const ns = await deyta.namespaces.getByExternalRef("my-app-user-123");
+```
+
+## Delete
+
+```ts
+await deyta.namespaces.delete("ns_123");
+```
+
+<Note>
+  Delete returns `void`. Errors throw — see [Error handling](/sdk/typescript/errors).
+</Note>
+
+## Scoping
+
+If you'll issue multiple operations against the same namespace, use the
+sub-client pattern. See [Scoping](/sdk/typescript/scoping).
+
+```ts
+const ns = deyta.namespaces.scope("ns_123");
+const meta = await ns.metadata(); // equivalent to deyta.namespaces.get("ns_123")
+await ns.delete();
+```

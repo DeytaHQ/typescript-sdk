@@ -1,0 +1,82 @@
+---
+title: Error handling
+description: "Typed errors with HTTP status, error codes, and a connection-error subclass."
+---
+
+The SDK throws two error classes. Always check both when handling failures.
+
+```ts
+import { DeytaError, DeytaConnectionError } from "@deyta-ai/sdk";
+
+try {
+  await deyta.namespaces.get("nonexistent");
+} catch (err) {
+  if (err instanceof DeytaError) {
+    err.code;     // e.g. "NOT_FOUND"
+    err.status;   // e.g. 404
+    err.message;  // human-readable message
+  } else if (err instanceof DeytaConnectionError) {
+    // Network failure, timeout, or caller-side abort.
+    err.cause;    // the underlying error if available
+  }
+}
+```
+
+## `DeytaError`
+
+Thrown when the API responds with a non-2xx status. Fields:
+
+<ParamField path="code" type="ErrorCode">
+  Machine-readable error code (see below).
+</ParamField>
+<ParamField path="status" type="number">
+  HTTP status code from the response.
+</ParamField>
+<ParamField path="message" type="string">
+  Human-readable error message from the API.
+</ParamField>
+
+### Error codes
+
+| Code | HTTP status | Typical cause |
+| --- | --- | --- |
+| `BAD_REQUEST` | 400 | Invalid input or missing fields |
+| `UNAUTHORIZED` | 401 | Missing or invalid API key |
+| `FORBIDDEN` | 403 | API key lacks required scope |
+| `NOT_FOUND` | 404 | Resource does not exist |
+| `CONFLICT` | 409 | Conflicting state (e.g., duplicate external ref) |
+| `INTERNAL_ERROR` | 500 | Unexpected server-side failure |
+| `BAD_GATEWAY` | 502 | Upstream gateway error |
+| `SERVICE_UNAVAILABLE` | 503 | Service temporarily unavailable |
+| `GATEWAY_TIMEOUT` | 504 | Upstream request timed out |
+
+## `DeytaConnectionError`
+
+Thrown when the request never received a response — network failures, the
+SDK's timeout firing, or caller-side `AbortSignal` cancellation. Fields:
+
+<ParamField path="message" type="string">
+  Description of the failure.
+</ParamField>
+<ParamField path="cause" type="unknown">
+  The original error from `fetch` or the `AbortSignal`, when available.
+</ParamField>
+
+## Distinguishing timeouts from real network errors
+
+If you've configured a per-call `timeout` or passed your own `AbortSignal`,
+both surface as `DeytaConnectionError`. Inspect the `cause` to differentiate:
+
+```ts
+try {
+  await deyta.memory.recall(input, { signal: controller.signal });
+} catch (err) {
+  if (err instanceof DeytaConnectionError) {
+    if (controller.signal.aborted) {
+      console.log("Caller cancelled the request.");
+    } else {
+      console.log("Network/timeout failure:", err.cause);
+    }
+  }
+}
+```

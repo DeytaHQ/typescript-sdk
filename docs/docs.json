@@ -1,0 +1,35 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Deyta TypeScript SDK",
+  "description": "TypeScript SDK for the Deyta platform — memory, namespaces, and integrations.",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting started",
+        "pages": [
+          "sdk/typescript/introduction",
+          "sdk/typescript/quickstart",
+          "sdk/typescript/configuration"
+        ]
+      },
+      {
+        "group": "Core concepts",
+        "pages": [
+          "sdk/typescript/scoping",
+          "sdk/typescript/memory",
+          "sdk/typescript/namespaces",
+          "sdk/typescript/integrations"
+        ]
+      },
+      {
+        "group": "Reliability",
+        "pages": [
+          "sdk/typescript/errors",
+          "sdk/typescript/retries",
+          "sdk/typescript/cancellation"
+        ]
+      }
+    ]
+  }
+}

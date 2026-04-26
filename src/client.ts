@@ -1,4 +1,4 @@
-import { MemoryLakeError, MemoryLakeNetworkError } from "./errors.js";
+import { DeytaError, DeytaConnectionError, type ErrorCode } from "./errors.js";
 import type {
   ErrorResponseBody,
   Pagination,
@@ -6,14 +6,47 @@ import type {
   RequestOptions,
   SuccessResponse,
 } from "./types.js";
+import { buildUserAgent } from "./user-agent.js";
 
-export interface DeyaConfig {
-  /** API key for authentication (Bearer token) */
+const DEFAULT_BASE_URL = "https://api.deyta.ai";
+const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_RETRY_STATUSES: ReadonlyArray<number> = [408, 429, 500, 502, 503, 504];
+
+export interface RetryConfig {
+  /** Max number of retries after the initial attempt. Default: 2. Set 0 to disable. */
+  maxRetries?: number;
+  /** First backoff in ms. Default: 500. Doubles each attempt with jitter. */
+  initialBackoffMs?: number;
+  /** Cap for exponential backoff in ms. Default: 8_000. */
+  maxBackoffMs?: number;
+  /** HTTP statuses that trigger a retry. Default: [408, 429, 500, 502, 503, 504]. */
+  retryOn?: number[];
+}
+
+export type SdkLogEvent =
+  | { type: "request"; method: string; url: string; attempt: number }
+  | { type: "response"; method: string; url: string; status: number; durationMs: number; attempt: number }
+  | { type: "retry"; method: string; url: string; attempt: number; backoffMs: number; reason: string }
+  | { type: "error"; method: string; url: string; error: Error; attempt: number };
+
+export type SdkLogger = (event: SdkLogEvent) => void;
+
+export interface DeytaConfig {
+  /** API key for authentication (Bearer token). Required. */
   apiKey: string;
-  /** Base URL of the Deyta API (e.g. "https://api.deyta.ai") */
-  baseUrl: string;
-  /** Request timeout in milliseconds (default: 30000) */
+  /** Base URL of the Deyta API. Default: "https://api.deyta.ai". */
+  baseUrl?: string;
+  /** Request timeout in ms. Default: 30_000. */
   timeout?: number;
+  /** Retry configuration. Default: 2 retries with exponential backoff. */
+  retries?: RetryConfig;
+  /**
+   * Optional fetch implementation. Useful for tests or runtimes that need
+   * a custom fetch. Falls back to `globalThis.fetch`.
+   */
+  fetch?: typeof fetch;
+  /** Optional logger for SDK events. No-op by default. */
+  logger?: SdkLogger;
 }
 
 export interface PaginatedResult<T> {
@@ -21,15 +54,34 @@ export interface PaginatedResult<T> {
   pagination: Pagination;
 }
 
+interface ResolvedRetryConfig {
+  maxRetries: number;
+  initialBackoffMs: number;
+  maxBackoffMs: number;
+  retryOn: ReadonlyArray<number>;
+}
+
 export class HttpClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly timeout: number;
+  private readonly retry: ResolvedRetryConfig;
+  private readonly fetchImpl: typeof fetch;
+  private readonly logger?: SdkLogger;
+  private readonly userAgent: string;
 
-  constructor(config: DeyaConfig) {
-    this.baseUrl = config.baseUrl.replace(/\/+$/, "") + "/gateway/v1";
+  constructor(config: DeytaConfig) {
+    if (!config.apiKey) {
+      throw new Error("DeytaConfig.apiKey is required");
+    }
+    const base = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
+    this.baseUrl = `${base}/gateway/v1`;
     this.apiKey = config.apiKey;
-    this.timeout = config.timeout ?? 30_000;
+    this.timeout = config.timeout ?? DEFAULT_TIMEOUT_MS;
+    this.retry = resolveRetryConfig(config.retries);
+    this.fetchImpl = config.fetch ?? globalThis.fetch.bind(globalThis);
+    this.logger = config.logger;
+    this.userAgent = buildUserAgent();
   }
 
   async get<T>(path: string, opts?: RequestOptions): Promise<T> {
@@ -49,8 +101,7 @@ export class HttpClient {
     const json = (await response.json()) as PaginatedResponse<T> | ErrorResponseBody;
 
     if (!json.success) {
-      const err = json as ErrorResponseBody;
-      throw new MemoryLakeError(err.error.code, err.error.message, err.error.status);
+      throwFromBody(json);
     }
 
     const paginated = json as PaginatedResponse<T>;
@@ -70,8 +121,7 @@ export class HttpClient {
     const json = (await response.json()) as SuccessResponse<T> | ErrorResponseBody;
 
     if (!json.success) {
-      const err = json as ErrorResponseBody;
-      throw new MemoryLakeError(err.error.code, err.error.message, err.error.status);
+      throwFromBody(json);
     }
 
     return (json as SuccessResponse<T>).data;
@@ -83,55 +133,127 @@ export class HttpClient {
     body?: unknown,
     opts?: RequestOptions,
   ): Promise<Response> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const url = `${this.baseUrl}${path}`;
+    const isRetryable = canRetry(method);
+    const maxAttempts = isRetryable ? this.retry.maxRetries + 1 : 1;
+
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const startedAt = Date.now();
+      this.logger?.({ type: "request", method, url, attempt });
+
+      try {
+        const response = await this.dispatch(method, url, body, opts);
+        const durationMs = Date.now() - startedAt;
+        this.logger?.({ type: "response", method, url, status: response.status, durationMs, attempt });
+
+        if (response.ok) return response;
+
+        // Non-2xx — decide whether to retry or surface as DeytaError.
+        const shouldRetry =
+          isRetryable &&
+          attempt < maxAttempts &&
+          this.retry.retryOn.includes(response.status);
+
+        if (shouldRetry) {
+          const backoffMs = backoffFor(attempt, this.retry, response);
+          this.logger?.({
+            type: "retry",
+            method,
+            url,
+            attempt,
+            backoffMs,
+            reason: `HTTP ${response.status}`,
+          });
+          await sleep(backoffMs);
+          continue;
+        }
+
+        // Non-retryable status — parse and throw.
+        await throwFromResponse(response);
+      } catch (err) {
+        // DeytaError — let it propagate immediately, never retry on shaped API errors.
+        if (err instanceof DeytaError) throw err;
+
+        lastError = err;
+
+        // Network or abort. AbortError when caller-cancelled is not retryable.
+        if (isCallerAbort(err, opts?.signal)) {
+          this.logger?.({ type: "error", method, url, error: err as Error, attempt });
+          throw new DeytaConnectionError("Request aborted", err);
+        }
+
+        const isTimeout = isAbortError(err);
+        if (isTimeout && attempt >= maxAttempts) {
+          this.logger?.({ type: "error", method, url, error: err as Error, attempt });
+          throw new DeytaConnectionError("Request timed out", err);
+        }
+
+        if (attempt >= maxAttempts || !isRetryable) {
+          this.logger?.({ type: "error", method, url, error: err as Error, attempt });
+          throw new DeytaConnectionError("Network request failed", err);
+        }
+
+        const backoffMs = backoffFor(attempt, this.retry, undefined);
+        this.logger?.({
+          type: "retry",
+          method,
+          url,
+          attempt,
+          backoffMs,
+          reason: errorReason(err),
+        });
+        await sleep(backoffMs);
+      }
+    }
+
+    // Defensive — loop should always return or throw.
+    throw new DeytaConnectionError("Network request failed", lastError);
+  }
+
+  private async dispatch(
+    method: string,
+    url: string,
+    body: unknown,
+    opts?: RequestOptions,
+  ): Promise<Response> {
+    const timeoutMs = opts?.timeout ?? this.timeout;
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
 
     try {
+      const signals = [timeoutController.signal];
+      if (opts?.signal) signals.push(opts.signal);
+      const signal = signals.length === 1 ? signals[0] : AbortSignal.any(signals);
+
       const headers: Record<string, string> = {
         Authorization: `Bearer ${this.apiKey}`,
+        "User-Agent": this.userAgent,
+        Accept: "application/json",
       };
+      if (body !== undefined) headers["Content-Type"] = "application/json";
 
-      if (body !== undefined) {
-        headers["Content-Type"] = "application/json";
-      }
-
-      const response = await fetch(`${this.baseUrl}${path}`, {
-        method,
-        headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-        signal: opts?.signal ?? controller.signal,
-      });
-
-      if (!response.ok && response.status !== 204) {
-        try {
-          const json = (await response.json()) as ErrorResponseBody;
-          if (json.error) {
-            throw new MemoryLakeError(json.error.code, json.error.message, json.error.status);
-          }
-        } catch (parseError) {
-          if (parseError instanceof MemoryLakeError) throw parseError;
-          throw new MemoryLakeError(
-            "INTERNAL_ERROR",
-            `HTTP ${response.status}: ${response.statusText}`,
-            response.status,
-          );
+      // Caller headers merge after — they win except on Authorization.
+      if (opts?.headers) {
+        for (const [k, v] of Object.entries(opts.headers)) {
+          if (k.toLowerCase() === "authorization") continue;
+          headers[k] = v;
         }
       }
 
-      return response;
-    } catch (error) {
-      if (error instanceof MemoryLakeError) throw error;
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw new MemoryLakeNetworkError("Request timed out");
-      }
-      throw new MemoryLakeNetworkError("Network request failed", error);
+      return await this.fetchImpl(url, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal,
+      });
     } finally {
       clearTimeout(timeoutId);
     }
   }
 }
 
-/** Build a query string from an object, omitting undefined values */
+/** Build a query string from an object, omitting undefined / null values. */
 export function buildQuery(params: object): string {
   const entries: string[] = [];
   for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
@@ -145,4 +267,93 @@ export function buildQuery(params: object): string {
     }
   }
   return entries.length > 0 ? `?${entries.join("&")}` : "";
+}
+
+// ── internals ────────────────────────────────────────────────────────
+
+function resolveRetryConfig(cfg?: RetryConfig): ResolvedRetryConfig {
+  return {
+    maxRetries: cfg?.maxRetries ?? 2,
+    initialBackoffMs: cfg?.initialBackoffMs ?? 500,
+    maxBackoffMs: cfg?.maxBackoffMs ?? 8_000,
+    retryOn: cfg?.retryOn ?? DEFAULT_RETRY_STATUSES,
+  };
+}
+
+function canRetry(method: string): boolean {
+  // Conservative: only auto-retry idempotent methods.
+  return method === "GET" || method === "DELETE" || method === "HEAD";
+}
+
+function backoffFor(attempt: number, cfg: ResolvedRetryConfig, response?: Response): number {
+  // Honor Retry-After when present — supports both seconds and HTTP-date.
+  if (response) {
+    const header = response.headers.get("retry-after");
+    if (header) {
+      const seconds = Number(header);
+      if (Number.isFinite(seconds) && seconds >= 0) {
+        return Math.min(cfg.maxBackoffMs, seconds * 1_000);
+      }
+      const dateMs = Date.parse(header);
+      if (!Number.isNaN(dateMs)) {
+        return Math.min(cfg.maxBackoffMs, Math.max(0, dateMs - Date.now()));
+      }
+    }
+  }
+  const exp = cfg.initialBackoffMs * 2 ** (attempt - 1);
+  const jitter = Math.floor(Math.random() * 250);
+  return Math.min(cfg.maxBackoffMs, exp + jitter);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError");
+}
+
+function isCallerAbort(err: unknown, callerSignal: AbortSignal | undefined): boolean {
+  return isAbortError(err) && !!callerSignal?.aborted;
+}
+
+function errorReason(err: unknown): string {
+  if (err instanceof Error) return `${err.name}: ${err.message}`;
+  return String(err);
+}
+
+function throwFromBody(json: ErrorResponseBody): never {
+  throw new DeytaError(json.error.code, json.error.message, json.error.status);
+}
+
+async function throwFromResponse(response: Response): Promise<never> {
+  // Try to parse the standard envelope; fall back to a synthetic error.
+  let body: ErrorResponseBody | undefined;
+  try {
+    body = (await response.json()) as ErrorResponseBody;
+  } catch {
+    // Fall through to synthetic.
+  }
+  if (body?.error) {
+    throw new DeytaError(body.error.code, body.error.message, body.error.status);
+  }
+  throw new DeytaError(
+    statusToCode(response.status),
+    `HTTP ${response.status}: ${response.statusText}`,
+    response.status,
+  );
+}
+
+function statusToCode(status: number): ErrorCode {
+  switch (status) {
+    case 400: return "BAD_REQUEST";
+    case 401: return "UNAUTHORIZED";
+    case 403: return "FORBIDDEN";
+    case 404: return "NOT_FOUND";
+    case 409: return "CONFLICT";
+    case 502: return "BAD_GATEWAY";
+    case 503: return "SERVICE_UNAVAILABLE";
+    case 504: return "GATEWAY_TIMEOUT";
+    default: return "INTERNAL_ERROR";
+  }
 }

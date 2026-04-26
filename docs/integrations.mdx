@@ -1,0 +1,75 @@
+---
+title: Integrations
+description: "OAuth-based data source connections (Google Drive, Notion, Slack, …)."
+---
+
+Integrations connect external data sources (Google Drive, Notion, Slack, …)
+into a namespace via OAuth. The SDK exposes the org-level provider catalog
+and namespace-scoped connection lifecycle.
+
+## List providers (org-level)
+
+```ts
+const providers = await deyta.integrations.listProviders();
+```
+
+## Connections
+
+<CodeGroup>
+```ts Scoped (recommended)
+const ns = deyta.namespaces.scope("ns_123");
+const connections = await ns.integrations.list();
+```
+
+```ts Top-level
+const connections = await deyta.integrations.listConnections({
+  namespace_id: "ns_123",
+});
+```
+</CodeGroup>
+
+```ts
+const conn = await deyta.integrations.getConnection("conn_123");
+```
+
+## OAuth flow
+
+<Steps>
+  <Step title="Start a session">
+    ```ts
+    const start = await ns.integrations.start({ provider: "google_drive" });
+    // start.session_token — pass to @nangohq/frontend SDK in the browser
+    // start.auth_link_url — OAuth redirect URL
+    ```
+  </Step>
+
+  <Step title="Run the OAuth flow in the user's browser">
+    Use [`@nangohq/frontend`](https://www.npmjs.com/package/@nangohq/frontend)
+    with the `session_token`. The user authorizes, and Nango returns a
+    `connection_id` and `account_id`.
+  </Step>
+
+  <Step title="Complete the connection">
+    ```ts
+    const completed = await ns.integrations.complete({
+      id: start.id,
+      token: "oauth_token_from_nango",
+      account_id: "account_id_from_nango",
+      connection_id: "connection_id_from_nango",
+      provider: "google_drive",
+    });
+    ```
+  </Step>
+
+  <Step title="Delete when no longer needed">
+    ```ts
+    await ns.integrations.delete(completed.id);
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  All connection field names are snake_case on the wire and in the SDK:
+  `namespace_id`, `connection_id`, `session_id`, `auth_link_url`, `created_by`,
+  `created_at`, `updated_at`, `org_id`.
+</Note>

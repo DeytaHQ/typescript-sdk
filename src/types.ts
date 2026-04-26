@@ -39,6 +39,18 @@ export type NamespaceTarget =
   | { namespace_id: string; external_reference_id?: never }
   | { external_reference_id: string; namespace_id?: never };
 
+// ── Time bounds ─────────────────────────────────────────────────────
+
+/** Either a `Date` or an ISO-8601 string. The SDK serializes to ISO. */
+export type TimeBound = Date | string;
+
+export interface TimeRange {
+  /** Inclusive lower bound on memory event time. */
+  from?: TimeBound;
+  /** Inclusive upper bound on memory event time. */
+  until?: TimeBound;
+}
+
 // ── Memory ──────────────────────────────────────────────────────────
 
 export type RememberInput = NamespaceTarget & {
@@ -49,15 +61,47 @@ export type RememberInput = NamespaceTarget & {
   ontology_id?: string;
 };
 
-export type RecallInput = NamespaceTarget & {
-  query: string;
-  limit?: number;
-  mode?: "vector" | "graph" | "hybrid" | "all";
-};
+export interface RememberResult {
+  document_id: string;
+  chunks_created: number;
+  entities_extracted: number;
+  relationships_created: number;
+}
+
+export type RecallMode = "vector" | "graph" | "hybrid" | "all";
+
+export type RecallInput = NamespaceTarget &
+  TimeRange & {
+    query: string;
+    limit?: number;
+    mode?: RecallMode;
+  };
+
+/**
+ * A single match from a recall query. The shape is best-effort; upstream may
+ * include additional fields, captured by the index signature.
+ */
+export interface RecallMatch {
+  document_id: string;
+  content: string;
+  score: number;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface RecallResult {
+  results: RecallMatch[];
+  [key: string]: unknown;
+}
 
 export type ForgetInput = NamespaceTarget & {
   document_id: string;
 };
+
+export interface ForgetResult {
+  document_id: string;
+  deleted: boolean;
+}
 
 export interface AskConfig {
   min_recall_limit?: number;
@@ -66,10 +110,17 @@ export interface AskConfig {
   enabled_tools?: string[];
 }
 
-export type AskInput = NamespaceTarget & {
-  query: string;
-  config?: AskConfig;
-};
+export type AskInput = NamespaceTarget &
+  TimeRange & {
+    query: string;
+    config?: AskConfig;
+  };
+
+export interface AskResult {
+  answer: string;
+  sources?: RecallMatch[];
+  [key: string]: unknown;
+}
 
 // ── Namespaces ──────────────────────────────────────────────────────
 
@@ -109,16 +160,16 @@ export type DataSourceConnectionStatus = "pending" | "connected" | "error" | "re
 
 export interface DataSourceConnection {
   id: string;
-  orgId: string;
-  namespaceId: string;
+  org_id: string;
+  namespace_id: string;
   provider: string;
-  connectionId: string | null;
+  connection_id: string | null;
   status: DataSourceConnectionStatus;
-  sessionId: string | null;
-  authLinkUrl: string | null;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
+  session_id: string | null;
+  auth_link_url: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export type ListConnectionsParams = NamespaceTarget;
@@ -140,8 +191,13 @@ export interface CompleteConnectionInput {
   provider: string;
 }
 
-// ── Request Options ─────────────────────────────────────────────────
+// ── Request options ─────────────────────────────────────────────────
 
 export interface RequestOptions {
+  /** Abort signal for cancellation. Combined with the SDK's timeout signal. */
   signal?: AbortSignal;
+  /** Per-call timeout override in ms. Falls back to the client's `timeout`. */
+  timeout?: number;
+  /** Extra headers merged after SDK headers (caller wins on conflicts, except `Authorization`). */
+  headers?: Record<string, string>;
 }

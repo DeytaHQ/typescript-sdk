@@ -1,0 +1,66 @@
+---
+title: Scoping a namespace
+description: "The recommended pattern: scope a client once and drop the repeated namespace_id."
+---
+
+If you'll issue several operations against the same namespace — which is the
+common case — scope the client once with `deyta.namespaces.scope(id)` (or
+`deyta.namespaces.scopeByExternalRef(ref)`).
+
+The scope is a lightweight handle. **No network call is made when constructing
+it.**
+
+```ts
+const ns = deyta.namespaces.scope("ns_123");
+// or by your application's external reference:
+const ns = deyta.namespaces.scopeByExternalRef("user-abc");
+```
+
+## Surface
+
+```ts
+// Memory ops — no namespace_id needed.
+await ns.remember({ content: "..." });
+await ns.recall({ query: "..." });
+await ns.ask({ query: "..." });
+await ns.forget({ document_id: "doc_456" });
+
+// Lifecycle.
+const meta = await ns.metadata(); // GETs the namespace
+await ns.delete();
+
+// Integrations scoped to this namespace.
+const connections = await ns.integrations.list();
+const session = await ns.integrations.start({ provider: "google_drive" });
+const completed = await ns.integrations.complete({
+  id: session.id,
+  token: "oauth_token_from_nango",
+  account_id: "account_id_from_nango",
+  connection_id: "connection_id_from_nango",
+  provider: "google_drive",
+});
+await ns.integrations.delete(completed.id);
+```
+
+## Why this pattern
+
+<CardGroup cols={2}>
+  <Card title="Less repetition" icon="copy">
+    Stop typing `namespace_id: "ns_..."` on every call.
+  </Card>
+  <Card title="Fewer bugs" icon="bug-slash">
+    No more accidental cross-namespace operations from a copy-paste.
+  </Card>
+  <Card title="External refs work everywhere" icon="link">
+    Scope by your app's user/tenant ID; the SDK resolves the namespace as needed.
+  </Card>
+  <Card title="Free to construct" icon="bolt">
+    The scope is local — no network call until you issue an operation.
+  </Card>
+</CardGroup>
+
+## Top-level resources are still there
+
+`deyta.memory`, `deyta.namespaces`, and `deyta.integrations` remain available
+for unscoped or cross-namespace ad-hoc work. The sub-client is a convenience,
+not a replacement.

@@ -1,0 +1,45 @@
+---
+title: Introduction
+description: "TypeScript SDK for the Deyta platform — memory operations, namespace management, and integrations."
+---
+
+`@deyta-ai/sdk` is the official TypeScript SDK for the [Deyta](https://deyta.ai)
+platform. It wraps the public API with typed inputs and outputs, ergonomic
+helpers, and reliability primitives (configurable retries, request cancellation,
+per-call options).
+
+## Highlights
+
+<CardGroup cols={2}>
+  <Card title="Zero dependencies" icon="feather">
+    Native `fetch`. No axios, no transitive footprint.
+  </Card>
+  <Card title="Dual ESM + CJS" icon="boxes-stacked">
+    Works in Node 20+, Bun, and modern bundlers. Type declarations and source
+    maps included.
+  </Card>
+  <Card title="Typed everywhere" icon="shield-check">
+    Inputs and outputs are typed end-to-end — no `unknown` returns from memory
+    operations.
+  </Card>
+  <Card title="Sub-client pattern" icon="layer-group">
+    Scope a namespace once with `deyta.namespaces.scope(id)` and stop repeating
+    `namespace_id` on every call.
+  </Card>
+</CardGroup>
+
+## Requirements
+
+- Node.js 20+ (uses `AbortSignal.any`) or Bun 1.0+
+- TypeScript 5+ for type definitions
+
+## Where to next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/sdk/typescript/quickstart">
+    First end-to-end memory roundtrip in under a minute.
+  </Card>
+  <Card title="Scoping" icon="crosshairs" href="/sdk/typescript/scoping">
+    The recommended pattern for production code.
+  </Card>
+</CardGroup>

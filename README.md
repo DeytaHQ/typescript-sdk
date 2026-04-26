@@ -1,67 +1,90 @@
 # @deyta-ai/sdk
 
-TypeScript SDK for the Deyta Gateway API. Zero dependencies — uses native `fetch`.
+TypeScript SDK for the [Deyta](https://deyta.ai) platform — memory operations, namespace management, and integrations.
 
-## Installation
+Zero runtime dependencies. Native `fetch`. Ships ESM and CJS. Recommended runtime: [Bun](https://bun.sh) or Node 20+.
+
+## Install
 
 ```bash
 npm install @deyta-ai/sdk
+# or
+bun add @deyta-ai/sdk
 ```
 
-## Quick Start
+## Quick start
 
-```typescript
+```ts
 import { Deyta } from "@deyta-ai/sdk";
 
-const deyta = new Deyta({
-  apiKey: "your-api-key",
-  baseUrl: "https://api.deyta.ai",
-});
+const deyta = new Deyta({ apiKey: process.env.DEYTA_API_KEY! });
 
 // Store a memory
 await deyta.memory.remember({
   namespace_id: "ns_123",
-  content: "The project deadline is March 15th",
-  title: "Project deadline",
-  source: "meeting-notes",
+  content: "The team standup is every Tuesday at 10am UTC.",
+  title: "Standup time",
 });
 
 // Search memories
-const results = await deyta.memory.recall({
+const result = await deyta.memory.recall({
   namespace_id: "ns_123",
-  query: "when is the project deadline?",
+  query: "when is the standup?",
 });
 ```
+
+## Recommended pattern: namespace sub-client
+
+If you'll issue several operations against the same namespace, scope the client once:
+
+```ts
+const ns = deyta.namespaces.scope("ns_123");
+// or by external reference:
+const ns = deyta.namespaces.scopeByExternalRef("user-abc");
+
+await ns.remember({ content: "..." });
+await ns.recall({ query: "..." });
+await ns.ask({ query: "..." });
+await ns.forget({ document_id: "doc_456" });
+
+// Namespace lifecycle
+const meta = await ns.metadata();
+await ns.delete();
+
+// Integrations scoped to this namespace
+const connections = await ns.integrations.list();
+const session = await ns.integrations.start({ provider: "google_drive" });
+```
+
+The scope is a lightweight handle — no network call is made when constructing it.
 
 ## Configuration
 
-```typescript
+```ts
 const deyta = new Deyta({
-  apiKey: "your-api-key",   // Required — API key from the Deyta Console
-  baseUrl: "https://...",   // Required — Base URL of the Deyta API
-  timeout: 30_000,          // Optional — Request timeout in ms (default: 30s)
+  apiKey: "your-api-key",     // Required.
+  baseUrl: "https://...",      // Optional. Default: https://api.deyta.ai
+  timeout: 30_000,             // Optional. Per-request timeout in ms. Default: 30_000.
+  retries: {                   // Optional. Default: 2 retries with exponential backoff.
+    maxRetries: 2,
+    initialBackoffMs: 500,
+    maxBackoffMs: 8_000,
+    retryOn: [408, 429, 500, 502, 503, 504],
+  },
+  fetch: customFetch,          // Optional. Inject a fetch implementation (tests, polyfills).
+  logger: (event) => {         // Optional. Receives request/response/retry/error events.
+    console.debug("[deyta]", event);
+  },
 });
 ```
 
-## Namespace Targeting
-
-Most endpoints accept either a `namespace_id` or an `external_reference_id` to identify the target namespace. Provide exactly one:
-
-```typescript
-// By namespace ID
-await deyta.memory.remember({ namespace_id: "ns_123", content: "..." });
-
-// By external reference
-await deyta.memory.remember({ external_reference_id: "my-app-user-123", content: "..." });
-```
+Retries auto-apply to idempotent methods (`GET`, `DELETE`) on the configured HTTP statuses and on network errors. The `Retry-After` header is honored when present (both seconds and HTTP-date forms). `POST` requests are not retried automatically.
 
 ## Memory
 
-### Remember
+### `remember`
 
-Store content as a memory in a namespace.
-
-```typescript
+```ts
 const result = await deyta.memory.remember({
   namespace_id: "ns_123",
   content: "Important information to remember",
@@ -70,196 +93,179 @@ const result = await deyta.memory.remember({
   metadata: { key: "value" },
   ontology_id: "optional-ontology-id",
 });
+// result: { document_id, chunks_created, entities_extracted, relationships_created }
 ```
 
-### Recall
+### `recall`
 
-Search for relevant memories using semantic similarity.
-
-```typescript
-const results = await deyta.memory.recall({
+```ts
+const result = await deyta.memory.recall({
   namespace_id: "ns_123",
   query: "what do we know about the project?",
   limit: 10,
-  mode: "hybrid", // "vector" | "graph" | "hybrid" | "all"
+  mode: "hybrid",                              // "vector" | "graph" | "hybrid" | "all"
+  from: new Date("2026-04-01T00:00:00Z"),      // Optional inclusive lower bound on event time
+  until: "2026-04-30T23:59:59Z",               // Optional inclusive upper bound (Date | ISO string)
 });
+// result: { results: RecallMatch[] }
 ```
 
-### Forget
+`from` and `until` accept either a `Date` or an ISO-8601 string. The SDK serializes them to the wire format expected by the API.
 
-Remove a specific memory document.
+### `forget`
 
-```typescript
+```ts
 const result = await deyta.memory.forget({
   namespace_id: "ns_123",
   document_id: "doc_456",
 });
+// result: { document_id, deleted }
 ```
 
-### Ask
+### `ask`
 
-Generate an answer from memories matching a query.
-
-```typescript
+```ts
 const answer = await deyta.memory.ask({
   namespace_id: "ns_123",
   query: "What are the key project milestones?",
   config: {
     min_recall_limit: 3,
     max_recall_limit: 20,
-    total_tokens_limit: 4000,
+    total_tokens_limit: 4_000,
     enabled_tools: ["recall"],
   },
+  from: new Date("2026-04-01T00:00:00Z"),
+  until: new Date("2026-04-30T23:59:59Z"),
 });
+// answer: { answer, sources?, ... }
 ```
 
 ## Namespaces
 
 ### Create
 
-```typescript
-const namespace = await deyta.namespaces.create({
+```ts
+const ns = await deyta.namespaces.create({
   name: "My Namespace",
   description: "A namespace for my project",
   external_reference_id: "my-app-user-123",
 });
-// namespace.id, namespace.mcp_endpoint_url, etc.
 ```
 
-### List
+### List + iterate
 
-```typescript
-const { data, pagination } = await deyta.namespaces.list({
-  page: 1,
-  page_size: 20,
-});
-// data: Namespace[], pagination: { page, pageSize, total, totalPages }
+```ts
+// One page at a time
+const { data, pagination } = await deyta.namespaces.list({ page: 1, page_size: 20 });
+
+// Or walk every page automatically
+for await (const ns of deyta.namespaces.iterate({ page_size: 50 })) {
+  console.log(ns.id);
+}
 ```
 
-### Get
+### Get / delete
 
-```typescript
-// By ID
+```ts
 const ns = await deyta.namespaces.get("ns_123");
-
-// By external reference ID
-const ns2 = await deyta.namespaces.getByExternalId("my-app-user-123");
-```
-
-### Delete
-
-```typescript
+const ns = await deyta.namespaces.getByExternalRef("user-abc");
 await deyta.namespaces.delete("ns_123");
 ```
 
 ## Integrations
 
-### List Providers
+### List providers (org-level)
 
-List integration providers enabled for your organization.
-
-```typescript
+```ts
 const providers = await deyta.integrations.listProviders();
-// [{ provider: "google_drive", name: "Google Drive", type: "...", enabled: true }, ...]
 ```
 
-### List Connections
+### Connections
 
-```typescript
-const connections = await deyta.integrations.listConnections({
-  namespace_id: "ns_123",
-});
+```ts
+const connections = await ns.integrations.list();           // scoped (preferred)
+const connections = await deyta.integrations.listConnections({ namespace_id: "ns_123" });
+
+const conn = await deyta.integrations.getConnection("conn_123");
 ```
 
-### Get Connection
+### OAuth flow
 
-```typescript
-const connection = await deyta.integrations.getConnection("conn_123");
-```
+```ts
+const start = await ns.integrations.start({ provider: "google_drive" });
+// start.session_token — pass to @nangohq/frontend SDK
+// start.auth_link_url — OAuth redirect URL
 
-### Start OAuth Connection
-
-Start an OAuth connect session for a data source integration.
-
-```typescript
-const result = await deyta.integrations.startConnection({
-  namespace_id: "ns_123",
-  provider: "google_drive",
-});
-// result.session_token — use with @nangohq/frontend SDK
-// result.auth_link_url — OAuth redirect URL
-```
-
-### Complete OAuth Connection
-
-Complete the OAuth flow after user authorization.
-
-```typescript
-const connection = await deyta.integrations.completeConnection({
-  id: "conn_123",
+const completed = await ns.integrations.complete({
+  id: start.id,
   token: "oauth_token_from_nango",
   account_id: "account_id_from_nango",
   connection_id: "connection_id_from_nango",
   provider: "google_drive",
 });
+
+await ns.integrations.delete(completed.id);
 ```
 
-### Delete Connection
+## Error handling
 
-```typescript
-await deyta.integrations.deleteConnection("conn_123");
-```
-
-## Error Handling
-
-```typescript
-import { MemoryLakeError, MemoryLakeNetworkError } from "@deyta-ai/sdk";
+```ts
+import { DeytaError, DeytaConnectionError } from "@deyta-ai/sdk";
 
 try {
   await deyta.namespaces.get("nonexistent");
-} catch (error) {
-  if (error instanceof MemoryLakeError) {
-    console.log(error.code);    // "NOT_FOUND"
-    console.log(error.status);  // 404
-    console.log(error.message); // "Not Found"
-  }
-
-  if (error instanceof MemoryLakeNetworkError) {
-    // Network failure or timeout
-    console.log(error.message);
+} catch (err) {
+  if (err instanceof DeytaError) {
+    err.code;     // "NOT_FOUND"
+    err.status;   // 404
+    err.message;  // "Not Found"
+  } else if (err instanceof DeytaConnectionError) {
+    // Network failure, timeout, or caller-side abort.
+    err.cause;    // Original error if available.
   }
 }
 ```
 
-**Error codes**: `BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`, `BAD_GATEWAY`, `SERVICE_UNAVAILABLE`, `GATEWAY_TIMEOUT`
+**Error codes**: `BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`, `BAD_GATEWAY`, `SERVICE_UNAVAILABLE`, `GATEWAY_TIMEOUT`.
 
-## Pagination
+## Cancellation and per-call options
 
-Paginated endpoints return `{ data, pagination }`:
+Every method accepts a second `RequestOptions` argument:
 
-```typescript
-const result = await deyta.namespaces.list({ page: 1, page_size: 10 });
-
-console.log(result.data);                 // Namespace[]
-console.log(result.pagination.total);      // Total count
-console.log(result.pagination.totalPages); // Total pages
-```
-
-## Abort Signals
-
-Every method accepts an optional `RequestOptions` with an `AbortSignal`:
-
-```typescript
+```ts
 const controller = new AbortController();
 setTimeout(() => controller.abort(), 5_000);
 
-const results = await deyta.memory.recall(
+await deyta.memory.recall(
   { namespace_id: "ns_123", query: "search" },
-  { signal: controller.signal },
+  {
+    signal: controller.signal,            // Caller-supplied abort signal
+    timeout: 10_000,                      // Per-call timeout override
+    headers: { "X-Trace-Id": "abc-123" }, // Extra headers (Authorization is protected)
+  },
 );
+```
+
+The SDK's timeout and the caller's signal are merged — either can abort the request.
+
+## Examples
+
+Runnable examples live under [`examples/`](./examples):
+
+- `quickstart.ts` — first end-to-end memory roundtrip
+- `namespace-scoped.ts` — using the sub-client pattern
+- `pagination.ts` — manual and async-iterator pagination
+- `error-handling.ts` — typed errors, cancellation, custom retries
+
+```bash
+DEYTA_API_KEY=… bun run examples/quickstart.ts
 ```
 
 ## Requirements
 
-- Node.js 18+ (or any runtime with native `fetch` support)
-- TypeScript 5+ (for type definitions)
+- Node.js 20+ (uses `AbortSignal.any`) or Bun 1.0+
+- TypeScript 5+ for type definitions
+
+## License
+
+[MIT](./LICENSE)

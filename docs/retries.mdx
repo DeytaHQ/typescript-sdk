@@ -1,0 +1,93 @@
+---
+title: Retries
+description: "Configurable retry policy with exponential backoff and Retry-After honoring."
+---
+
+The SDK retries idempotent requests automatically when the server returns a
+retriable status code or the network drops. The default policy is conservative
+and tunable per client.
+
+## Defaults
+
+```ts
+{
+  maxRetries: 2,
+  initialBackoffMs: 500,
+  maxBackoffMs: 8_000,
+  retryOn: [408, 429, 500, 502, 503, 504],
+}
+```
+
+## What retries
+
+| Method | Retried automatically? |
+| --- | --- |
+| `GET` | Yes — when status is in `retryOn` or on network error |
+| `DELETE` | Yes — when status is in `retryOn` or on network error |
+| `HEAD` | Yes — same rules |
+| `POST` | **No** — never retried automatically |
+
+<Note>
+  `POST` is not retried because we cannot guarantee the server hasn't already
+  applied the request. Once idempotency keys are supported by the gateway,
+  `POST` will become opt-in retriable. Until then, callers can implement
+  application-level retries when they know the operation is safe to repeat.
+</Note>
+
+## Backoff
+
+Each attempt waits:
+
+```
+min(maxBackoffMs, initialBackoffMs * 2^attempt + jitter(0..250ms))
+```
+
+Jitter prevents thundering herds when many clients retry simultaneously.
+
+## `Retry-After`
+
+If the server returns `Retry-After` on a 429 or 503, the SDK honors it. Both
+forms are supported:
+
+- Integer seconds: `Retry-After: 5`
+- HTTP-date: `Retry-After: Wed, 21 Oct 2026 07:28:00 GMT`
+
+The honored delay is capped at `maxBackoffMs`.
+
+## Tuning the policy
+
+```ts
+const deyta = new Deyta({
+  apiKey,
+  retries: {
+    maxRetries: 5,            // Be more patient on flaky networks
+    initialBackoffMs: 250,
+    maxBackoffMs: 30_000,
+    retryOn: [429, 500, 502, 503, 504],
+  },
+});
+```
+
+To disable retries entirely:
+
+```ts
+const deyta = new Deyta({ apiKey, retries: { maxRetries: 0 } });
+```
+
+## Observing retries
+
+Wire up the [logger hook](/sdk/typescript/configuration#logger-events) to see
+when retries fire:
+
+```ts
+const deyta = new Deyta({
+  apiKey,
+  logger: (event) => {
+    if (event.type === "retry") {
+      console.warn(
+        `[deyta] retry attempt=${event.attempt} backoff=${event.backoffMs}ms reason=${event.reason}`,
+      );
+    }
+  },
+});
+```
