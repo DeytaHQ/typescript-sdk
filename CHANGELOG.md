@@ -4,6 +4,16 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2]
+
+Re-attempt of the 0.2.1 release. The 0.2.1 publish failed because the
+release workflow's npm CLI (10.x, shipped with Node 20) does not support
+the OIDC exchange required by npm Trusted Publishers. The workflow now
+upgrades to npm >= 11.5.1 before publishing.
+
+### Changed
+- `release.yml` upgrades npm to the latest version before `npm publish`.
+
 ## [0.2.1]
 
 Metadata-only release. No source changes; published by the new standalone

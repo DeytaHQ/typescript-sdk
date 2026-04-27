@@ -23,6 +23,9 @@ jobs:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
+      - name: Upgrade npm for Trusted Publishers (OIDC)
+        run: npm install -g npm@latest
+
       - name: Install
         run: bun install --frozen-lockfile
 
