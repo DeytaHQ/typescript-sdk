@@ -215,7 +215,7 @@ await ns.integrations.delete(completed.id);
 
 ## Personas
 
-The persona endpoints expose a four-call lifecycle on top of `/gateway/v1/personas` (ADR-072). The SDK hides the underlying `agent_id` behind namespace-scoped resolution: every call accepts either `namespace_id` or `external_reference_id`.
+The persona endpoints expose a four-call lifecycle on top of `/gateway/v1/personas`. Each namespace has exactly one persona; the SDK hides the underlying `agent_id` behind namespace-scoped resolution, so every call accepts either `namespace_id` or `external_reference_id`.
 
 ### Create (idempotent)
 

@@ -10,9 +10,10 @@ import type {
 } from "../types.js";
 
 /**
- * Persona lifecycle on top of `/gateway/v1/personas` (ADR-072). The gateway
- * hides the underlying `agent_id` behind namespace-scoped resolution: every
- * method takes either `namespace_id` or `external_reference_id`.
+ * Persona lifecycle on top of `/gateway/v1/personas`. Each namespace has
+ * exactly one persona; the gateway hides the underlying `agent_id` behind
+ * namespace-scoped resolution, so every method takes either `namespace_id`
+ * or `external_reference_id`.
  */
 export class Personas {
   constructor(private readonly http: HttpClient) {}
