@@ -34,7 +34,14 @@ export type SdkLogger = (event: SdkLogEvent) => void;
 export interface DeytaConfig {
   /** API key for authentication (Bearer token). Required. */
   apiKey: string;
-  /** Base URL of the Deyta API. Default: "https://api.deyta.ai". */
+  /**
+   * Base URL of the Deyta API. Resolution order:
+   *   1. Explicit `baseUrl` passed here
+   *   2. `process.env.DEYTA_BASE_URL` (read once at construction — load env
+   *      vars before instantiating the client; a whitespace-only value
+   *      logs a `console.warn` and falls through to the default)
+   *   3. `https://api.deyta.ai`
+   */
   baseUrl?: string;
   /** Request timeout in ms. Default: 30_000. */
   timeout?: number;
@@ -74,7 +81,7 @@ export class HttpClient {
     if (!config.apiKey) {
       throw new Error("DeytaConfig.apiKey is required");
     }
-    const base = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
+    const base = resolveBaseUrl(config.baseUrl).replace(/\/+$/, "");
     this.baseUrl = `${base}/gateway/v1`;
     this.apiKey = config.apiKey;
     this.timeout = config.timeout ?? DEFAULT_TIMEOUT_MS;
@@ -291,6 +298,20 @@ export function buildQuery(params: object): string {
 }
 
 // ── internals ────────────────────────────────────────────────────────
+
+function resolveBaseUrl(explicit?: string): string {
+  if (explicit) return explicit;
+  const raw = globalThis.process?.env?.DEYTA_BASE_URL;
+  if (raw === undefined) return DEFAULT_BASE_URL;
+  const trimmed = raw.trim();
+  if (trimmed === "") {
+    console.warn(
+      `[deyta-sdk] DEYTA_BASE_URL is set but empty; falling back to ${DEFAULT_BASE_URL}.`,
+    );
+    return DEFAULT_BASE_URL;
+  }
+  return trimmed;
+}
 
 function resolveRetryConfig(cfg?: RetryConfig): ResolvedRetryConfig {
   return {

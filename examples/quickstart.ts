@@ -4,7 +4,7 @@
  * Run with:
  *   DEYTA_API_KEY=… bun run examples/quickstart.ts
  *
- * Pass DEYTA_BASE_URL to point at staging or a local API.
+ * Set DEYTA_BASE_URL to point at staging or a local API.
  */
 import { Deyta } from "../src/index.js";
 
@@ -14,10 +14,7 @@ if (!apiKey) {
   process.exit(1);
 }
 
-const deyta = new Deyta({
-  apiKey,
-  baseUrl: process.env.DEYTA_BASE_URL,
-});
+const deyta = new Deyta({ apiKey });
 
 // Create a namespace to play in.
 const ns = await deyta.namespaces.create({

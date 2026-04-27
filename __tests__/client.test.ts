@@ -13,12 +13,95 @@ function setup(overrides: Parameters<typeof Deyta>[0] extends infer C ? Partial<
   return { deyta, mock };
 }
 
+/**
+ * Run `fn` with `process.env[key]` set to `value` (or unset when `undefined`),
+ * restoring the previous value afterwards. Wraps assertions in `try/finally`
+ * so a failure can't leak env mutation into other tests.
+ */
+async function withEnv(
+  key: string,
+  value: string | undefined,
+  fn: () => Promise<void>,
+): Promise<void> {
+  const prev = process.env[key];
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
+  try {
+    await fn();
+  } finally {
+    if (prev === undefined) delete process.env[key];
+    else process.env[key] = prev;
+  }
+}
+
 describe("HttpClient — request shape", () => {
   test("uses default baseUrl when omitted", async () => {
-    const { deyta, mock } = setup();
-    mock.setHandler(() => jsonOk({ id: "ns_1" }));
-    await deyta.namespaces.get("ns_1");
-    expect(mock.requests[0]?.url).toBe("https://api.deyta.ai/gateway/v1/namespaces/ns_1");
+    await withEnv("DEYTA_BASE_URL", undefined, async () => {
+      const { deyta, mock } = setup();
+      mock.setHandler(() => jsonOk({ id: "ns_1" }));
+      await deyta.namespaces.get("ns_1");
+      expect(mock.requests[0]?.url).toBe("https://api.deyta.ai/gateway/v1/namespaces/ns_1");
+    });
+  });
+
+  test("falls back to DEYTA_BASE_URL when baseUrl omitted", async () => {
+    await withEnv("DEYTA_BASE_URL", "https://console.deyta.ai", async () => {
+      const { deyta, mock } = setup();
+      mock.setHandler(() => jsonOk({ id: "ns_1" }));
+      await deyta.namespaces.get("ns_1");
+      expect(mock.requests[0]?.url).toBe(
+        "https://console.deyta.ai/gateway/v1/namespaces/ns_1",
+      );
+    });
+  });
+
+  test("explicit baseUrl beats DEYTA_BASE_URL", async () => {
+    await withEnv("DEYTA_BASE_URL", "https://console.deyta.ai", async () => {
+      const mock = new FetchMock();
+      const deyta = new Deyta({
+        apiKey: "k",
+        baseUrl: "https://staging.deyta.ai",
+        fetch: mock.fetch,
+      });
+      mock.setHandler(() => jsonOk({ id: "x" }));
+      await deyta.namespaces.get("x");
+      expect(mock.requests[0]?.url).toBe(
+        "https://staging.deyta.ai/gateway/v1/namespaces/x",
+      );
+    });
+  });
+
+  test("warns and falls back to default when DEYTA_BASE_URL is whitespace", async () => {
+    await withEnv("DEYTA_BASE_URL", "   ", async () => {
+      const warnings: unknown[][] = [];
+      const originalWarn = console.warn;
+      console.warn = (...args: unknown[]) => {
+        warnings.push(args);
+      };
+      try {
+        const { deyta, mock } = setup();
+        mock.setHandler(() => jsonOk({ id: "ns_1" }));
+        await deyta.namespaces.get("ns_1");
+        expect(mock.requests[0]?.url).toBe(
+          "https://api.deyta.ai/gateway/v1/namespaces/ns_1",
+        );
+        expect(warnings).toHaveLength(1);
+        expect(String(warnings[0]?.[0])).toContain("DEYTA_BASE_URL");
+      } finally {
+        console.warn = originalWarn;
+      }
+    });
+  });
+
+  test("trims surrounding whitespace from DEYTA_BASE_URL", async () => {
+    await withEnv("DEYTA_BASE_URL", "  https://staging.deyta.ai  ", async () => {
+      const { deyta, mock } = setup();
+      mock.setHandler(() => jsonOk({ id: "ns_1" }));
+      await deyta.namespaces.get("ns_1");
+      expect(mock.requests[0]?.url).toBe(
+        "https://staging.deyta.ai/gateway/v1/namespaces/ns_1",
+      );
+    });
   });
 
   test("respects explicit baseUrl override", async () => {

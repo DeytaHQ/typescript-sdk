@@ -63,7 +63,7 @@ The scope is a lightweight handle — no network call is made when constructing 
 ```ts
 const deyta = new Deyta({
   apiKey: "your-api-key",     // Required.
-  baseUrl: "https://...",      // Optional. Default: https://api.deyta.ai
+  baseUrl: "https://...",      // Optional. Falls back to DEYTA_BASE_URL env var, then https://api.deyta.ai.
   timeout: 30_000,             // Optional. Per-request timeout in ms. Default: 30_000.
   retries: {                   // Optional. Default: 2 retries with exponential backoff.
     maxRetries: 2,
@@ -182,21 +182,39 @@ const providers = await deyta.integrations.listProviders();
 
 ### Connections
 
+Connections target either a namespace or a persona via the typed `target` discriminator. Provide exactly one of `id` / `external_reference_id`:
+
 ```ts
-const connections = await ns.integrations.list();           // scoped (preferred)
-const connections = await deyta.integrations.listConnections({ namespace_id: "ns_123" });
+// Namespace-targeted (also what the scoped form uses under the hood)
+const connections = await deyta.integrations.listConnections({
+  type: "namespace",
+  id: "ns_123",
+});
+
+// Persona-targeted
+const connections = await deyta.integrations.listConnections({
+  type: "persona",
+  external_reference_id: "user-abc",
+});
+
+// Or via the namespace scope — target is captured implicitly
+const connections = await ns.integrations.list();
 
 const conn = await deyta.integrations.getConnection("conn_123");
+// conn.personaId — set when the connection's namespace backs a persona; null otherwise
 ```
 
 ### OAuth flow
 
 ```ts
-const start = await ns.integrations.start({ provider: "google_drive" });
+const start = await deyta.integrations.startConnection({
+  target: { type: "persona", id: persona.id },
+  provider: "google_drive",
+});
 // start.session_token — pass to @nangohq/frontend SDK
 // start.auth_link_url — OAuth redirect URL
 
-const completed = await ns.integrations.complete({
+const completed = await deyta.integrations.completeConnection({
   id: start.id,
   token: "oauth_token_from_nango",
   account_id: "account_id_from_nango",
@@ -204,8 +222,73 @@ const completed = await ns.integrations.complete({
   provider: "google_drive",
 });
 
-await ns.integrations.delete(completed.id);
+await deyta.integrations.deleteConnection(completed.id);
 ```
+
+## Personas
+
+A persona is a top-level resource that owns a backing namespace created automatically at the same time. The persona's `id` is stable across SDK calls and is the handle used by every other persona operation.
+
+### Create
+
+```ts
+const persona = await deyta.personas.create({
+  subject: "Alice",
+  external_reference_id: "user-abc",   // optional
+  description: "demo persona",          // optional
+});
+// persona: { id, orgId, namespaceId, externalReferenceId, subject, description, createdAt, updatedAt }
+```
+
+When the call succeeds, the calling API key is auto-granted access to the persona's backing namespace, so subsequent persona ops work without extra permission steps.
+
+### List + iterate
+
+```ts
+const { data, pagination } = await deyta.personas.list({ page: 1, page_size: 20 });
+
+for await (const p of deyta.personas.iterate({ page_size: 50 })) {
+  console.log(p.id, p.subject);
+}
+```
+
+### Read (with composite document)
+
+```ts
+const result = await deyta.personas.get(persona.id);
+// or: const result = await deyta.personas.getByExternalRef("user-abc");
+
+if (result.composite.available) {
+  result.composite.data; // ComposedPersona — identity, traits, episodes, peers, facets, providers, ...
+} else {
+  // Local record exists but the composite has not been produced yet — call build() and poll status().
+}
+```
+
+Returns `404 NOT_FOUND` when the persona doesn't exist locally; `503` when the gateway can't reach the composite service. When the composite simply hasn't been produced yet, the response is shaped `{ ...persona, composite: { available: false } }` instead of an error.
+
+### Update / delete
+
+```ts
+await deyta.personas.update(persona.id, {
+  description: "updated copy",
+  external_reference_id: null,    // pass null to clear; omit to leave unchanged
+});
+
+await deyta.personas.delete(persona.id);
+// Cascades to the backing namespace and all of its connections, labels, and grants.
+```
+
+### Build / status
+
+```ts
+const { build_id } = await deyta.personas.build(persona.id);  // HTTP 202
+
+const { status, last_built_at } = await deyta.personas.status(persona.id);
+// status: "building" | "ready" | "not_built"
+```
+
+`build()` is not idempotent — the gateway returns `409 CONFLICT` if a build is already in flight. Poll `status()` to follow progress.
 
 ## Error handling
 
@@ -260,6 +343,49 @@ Runnable examples live under [`examples/`](./examples):
 ```bash
 DEYTA_API_KEY=… bun run examples/quickstart.ts
 ```
+
+## Smoke tests
+
+End-to-end scripts under [`scripts/smoke/`](./scripts/smoke) exercise each resource against a real API. Useful for verifying staging or release builds before publishing.
+
+### Configuration
+
+Both vars are read from the environment:
+
+| Variable          | Required | Purpose                                                      |
+|-------------------|----------|--------------------------------------------------------------|
+| `DEYTA_API_KEY`   | yes      | Bearer token. Scripts exit `1` if missing.                   |
+| `DEYTA_BASE_URL`  | no       | API base URL. Defaults to `https://api.deyta.ai`.            |
+
+Set them inline, export them in your shell, or drop them into a `.env` file (bun auto-loads it):
+
+```bash
+# inline
+DEYTA_API_KEY=sk_… DEYTA_BASE_URL=https://staging.deyta.ai bun run smoke
+
+# or shell-exported
+export DEYTA_API_KEY=sk_…
+export DEYTA_BASE_URL=https://staging.deyta.ai
+bun run smoke
+```
+
+### Available scripts
+
+| Script                         | Covers                                                          |
+| ------------------------------ | --------------------------------------------------------------- |
+| `bun run smoke`                | All four suites in sequence (fail-fast).                        |
+| `bun run smoke:namespaces`     | create / get / `getByExternalRef` / list / iterate / delete     |
+| `bun run smoke:memory`         | scratch namespace → remember / recall / ask / forget → cleanup  |
+| `bun run smoke:integrations`   | `listProviders`, `listConnections` (read-only — OAuth skipped)  |
+| `bun run smoke:personas`       | create / get / update / list / status / delete                  |
+
+`smoke:personas` accepts `-- --build` to additionally trigger an async build (not awaited to completion):
+
+```bash
+bun run smoke:personas -- --build
+```
+
+Every script wraps its work in `try / finally` so a failure mid-run still cleans up the namespace or persona it created.
 
 ## Requirements
 

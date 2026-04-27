@@ -12,10 +12,7 @@ if (!apiKey) {
   process.exit(1);
 }
 
-const deyta = new Deyta({
-  apiKey,
-  baseUrl: process.env.DEYTA_BASE_URL,
-});
+const deyta = new Deyta({ apiKey });
 
 // Manual pagination — one page at a time.
 const firstPage = await deyta.namespaces.list({ page: 1, page_size: 20 });

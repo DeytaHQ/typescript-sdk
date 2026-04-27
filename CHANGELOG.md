@@ -4,6 +4,24 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0]
+
+### Added
+- `deyta.personas` resource for the new top-level persona surface — `create`, `list`, `iterate`, `get`, `getByExternalRef`, `update`, `delete`, `build`, `status`. Each persona owns a backing namespace created automatically; the persona's `id` is stable across SDK calls.
+- `get` and `getByExternalRef` return a `PersonaWithComposite` envelope that surfaces `composite.available: false` when the composite document has not yet been produced, instead of throwing — the local record is still intact and can be rebuilt with `build()`.
+- Public types: `Persona`, `PersonaWithComposite`, `PersonaBuildStatus`, `PersonaStatusValue`, `BuildAccepted`, `ComposedPersona`, `CreatePersonaInput`, `UpdatePersonaInput`, `ListPersonasParams`, `Target`.
+- `DEYTA_BASE_URL` env-var fallback for `DeytaConfig.baseUrl`. Resolution order is now: explicit `config.baseUrl` > `process.env.DEYTA_BASE_URL` > `https://api.deyta.ai`. The env var is read once at `Deyta` construction; load env vars before instantiating the client. Whitespace-only values fall through to the default and emit a `console.warn`.
+- End-to-end smoke scripts under `scripts/smoke/` exercising namespaces, memory, integrations, and personas against a live API. Wired as `bun run smoke` (all suites, fail-fast) plus `smoke:namespaces`, `smoke:memory`, `smoke:integrations`, `smoke:personas`. `smoke:personas -- --build` additionally triggers an async build.
+
+### Changed
+- **Breaking** `Integrations.listConnections` now takes a typed `Target` (`{ type: "namespace" | "persona", id?, external_reference_id? }`) instead of a flat `NamespaceTarget`. Serialized to `target_type` / `target_id` / `target_external_reference_id` on the wire.
+- **Breaking** `Integrations.startConnection` body now wraps the target: `{ target: Target, provider }` instead of `{ namespace_id, provider }`.
+- **Breaking** `DataSourceConnection` field names switched to camelCase (`namespaceId`, `connectionId`, `sessionId`, `authLinkUrl`, `createdBy`, `createdAt`, `updatedAt`, `orgId`) and gained `personaId: string | null` (set when the connection's namespace backs a persona).
+- The namespace sub-client (`deyta.namespaces.scope(id).integrations`) automatically translates the captured namespace into `{ type: "namespace", … }` — no caller-side changes if you were already going through the scope.
+
+### Security
+- The `seg()` path-segment validator from 0.2.3 is now applied to every persona endpoint as well (`get`, `getByExternalRef`, `update`, `delete`, `build`, `status`). Caller-supplied IDs are encoded and `""` / `"."` / `".."` are rejected up front.
+
 ## [0.2.3]
 
 Security release. Path identifiers passed to namespace and connection

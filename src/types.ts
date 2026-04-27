@@ -39,6 +39,16 @@ export type NamespaceTarget =
   | { namespace_id: string; external_reference_id?: never }
   | { external_reference_id: string; namespace_id?: never };
 
+/**
+ * Typed reference to an addressable resource (namespace or persona). Provide
+ * exactly one of `id` or `external_reference_id`. Used by the integrations
+ * surface to pick a namespace directly or via the persona that owns it.
+ */
+export type Target = { type: "namespace" | "persona" } & (
+  | { id: string; external_reference_id?: never }
+  | { external_reference_id: string; id?: never }
+);
+
 // ── Time bounds ─────────────────────────────────────────────────────
 
 /** Either a `Date` or an ISO-8601 string. The SDK serializes to ISO. */
@@ -146,6 +156,82 @@ export interface ListNamespacesParams {
   page_size?: number;
 }
 
+// ── Personas ────────────────────────────────────────────────────────
+
+/**
+ * Top-level persona record. `id` is stable across SDK calls — pass it to
+ * `build()`, `status()`, `update()`, and `delete()`. Each persona owns a
+ * backing namespace (`namespaceId`) created automatically; that namespace
+ * is where memory and integrations land.
+ */
+export interface Persona {
+  id: string;
+  orgId: string;
+  namespaceId: string;
+  externalReferenceId: string | null;
+  subject: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Composite persona document returned by the gateway. The shape is permissive
+ * (identity, traits, episodes, peers, facets, providers, source_event_count,
+ * …); the API may add fields, captured by the index signature.
+ */
+export interface ComposedPersona {
+  agent_id: string;
+  [key: string]: unknown;
+}
+
+/**
+ * A `Persona` enriched with its composite document. When the gateway has not
+ * yet produced a composite for this persona, `composite.available` is
+ * `false` instead of throwing — the local record is still intact and can be
+ * rebuilt with `personas.build(id)`.
+ */
+export type PersonaWithComposite = Persona & {
+  composite:
+    | { available: true; data: ComposedPersona }
+    | { available: false };
+};
+
+export type PersonaStatusValue = "building" | "ready" | "not_built";
+
+export interface PersonaBuildStatus {
+  agent_id: string;
+  status: PersonaStatusValue;
+  last_built_at: string | null;
+  [key: string]: unknown;
+}
+
+export interface BuildAccepted {
+  build_id: string;
+  agent_id: string;
+  status: "accepted";
+  [key: string]: unknown;
+}
+
+export interface CreatePersonaInput {
+  subject: string;
+  external_reference_id?: string;
+  description?: string;
+}
+
+export interface UpdatePersonaInput {
+  /** Pass `null` to clear. Omit to leave unchanged. */
+  external_reference_id?: string | null;
+  /** Pass `null` to clear. Omit to leave unchanged. */
+  description?: string | null;
+}
+
+export interface ListPersonasParams {
+  page?: number;
+  page_size?: number;
+}
+
 // ── Integrations ────────────────────────────────────────────────────
 
 export interface IntegrationSetting {
@@ -158,25 +244,32 @@ export interface IntegrationSetting {
 
 export type DataSourceConnectionStatus = "pending" | "connected" | "error" | "revoked";
 
+/**
+ * OAuth-based data-source connection. `personaId` is set when the connection's
+ * namespace backs a persona (which is the common case for connections created
+ * via `target: { type: "persona", … }`); `null` for namespace-only targets.
+ */
 export interface DataSourceConnection {
   id: string;
-  org_id: string;
-  namespace_id: string;
+  orgId: string;
+  namespaceId: string;
+  personaId: string | null;
   provider: string;
-  connection_id: string | null;
+  connectionId: string | null;
   status: DataSourceConnectionStatus;
-  session_id: string | null;
-  auth_link_url: string | null;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
+  sessionId: string | null;
+  authLinkUrl: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export type ListConnectionsParams = NamespaceTarget;
+export type ListConnectionsParams = Target;
 
-export type StartConnectionInput = NamespaceTarget & {
+export interface StartConnectionInput {
+  target: Target;
   provider: string;
-};
+}
 
 export interface StartConnectionResult extends DataSourceConnection {
   session_token: string;

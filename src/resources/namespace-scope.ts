@@ -16,13 +16,13 @@ import type {
   RememberInput,
   RememberResult,
   RequestOptions,
-  StartConnectionInput,
   StartConnectionResult,
+  Target,
 } from "../types.js";
 
 /**
- * A lightweight handle to a single namespace. All memory, persona, and
- * integration ops can be issued without re-stating the namespace target.
+ * A lightweight handle to a single namespace. All memory and integration ops
+ * can be issued without re-stating the namespace target.
  *
  * The handle is constructed eagerly with no network call. `metadata()`
  * fetches the underlying `Namespace` on demand.
@@ -95,36 +95,47 @@ export class NamespaceScope {
 }
 
 /**
- * Integrations as exposed inside a namespace scope. The namespace target
- * is implicit — callers no longer pass `namespace_id` / `external_reference_id`
- * into list/start.
+ * Translate the captured `NamespaceTarget` into the typed gateway `Target`
+ * shape the integrations endpoints now require.
+ */
+function namespaceAsTarget(target: NamespaceTarget): Target {
+  if ("namespace_id" in target && target.namespace_id) {
+    return { type: "namespace", id: target.namespace_id };
+  }
+  return { type: "namespace", external_reference_id: target.external_reference_id! };
+}
+
+/**
+ * Integrations as exposed inside a namespace scope. The namespace target is
+ * implicit — callers no longer pass `target` into list/start.
  */
 export class NamespaceIntegrationsScope {
+  private readonly resolvedTarget: Target;
+
   constructor(
     private readonly integrations: Integrations,
-    private readonly target: NamespaceTarget,
-  ) {}
-
-  list(opts?: RequestOptions): Promise<DataSourceConnection[]> {
-    return this.integrations.listConnections(this.target, opts);
+    target: NamespaceTarget,
+  ) {
+    this.resolvedTarget = namespaceAsTarget(target);
   }
 
-  start(
-    input: Omit<StartConnectionInput, keyof NamespaceTarget>,
-    opts?: RequestOptions,
-  ): Promise<StartConnectionResult> {
+  list(opts?: RequestOptions): Promise<DataSourceConnection[]> {
+    return this.integrations.listConnections(this.resolvedTarget, opts);
+  }
+
+  start(input: { provider: string }, opts?: RequestOptions): Promise<StartConnectionResult> {
     return this.integrations.startConnection(
-      { ...input, ...this.target } as StartConnectionInput,
+      { target: this.resolvedTarget, provider: input.provider },
       opts,
     );
   }
 
-  /** Connection-scoped — does not require a namespace target. */
+  /** Connection-scoped — does not require a target. */
   get(id: string, opts?: RequestOptions): Promise<DataSourceConnection> {
     return this.integrations.getConnection(id, opts);
   }
 
-  /** Connection-scoped — does not require a namespace target. */
+  /** Connection-scoped — does not require a target. */
   complete(
     input: CompleteConnectionInput,
     opts?: RequestOptions,
@@ -132,7 +143,7 @@ export class NamespaceIntegrationsScope {
     return this.integrations.completeConnection(input, opts);
   }
 
-  /** Connection-scoped — does not require a namespace target. */
+  /** Connection-scoped — does not require a target. */
   delete(id: string, opts?: RequestOptions): Promise<void> {
     return this.integrations.deleteConnection(id, opts);
   }
