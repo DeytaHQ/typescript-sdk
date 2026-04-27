@@ -6,6 +6,18 @@
  */
 import { makeClient, runSmoke, step, uniq } from "./_shared.js";
 
+/** Stringify a value for diagnostic logs, capping length so output stays usable. */
+function preview(value: unknown, max = 600): string {
+  let json: string;
+  try {
+    json = JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+  if (json === undefined) return String(value);
+  return json.length > max ? `${json.slice(0, max)}…` : json;
+}
+
 await runSmoke("memory", async () => {
   const deyta = makeClient();
 
@@ -33,9 +45,14 @@ await runSmoke("memory", async () => {
       limit: 3,
       mode: "hybrid",
     });
-    console.log("  matches:", recalled.results.length);
-    if (recalled.results[0]) {
-      console.log("  top score:", recalled.results[0].score);
+    if (Array.isArray(recalled?.results)) {
+      console.log("  matches:", recalled.results.length);
+      if (recalled.results[0]) {
+        console.log("  top score:", recalled.results[0].score);
+      }
+    } else {
+      console.warn("  ⚠ no `results` array on recall response — gateway shape may have drifted from RecallResult");
+      console.warn("  raw recall response:", preview(recalled));
     }
 
     step("ask");
@@ -43,7 +60,12 @@ await runSmoke("memory", async () => {
       namespace_id: ns.id,
       query: "When is the team standup?",
     });
-    console.log("  answer:", answered.answer.slice(0, 120));
+    if (typeof answered?.answer === "string") {
+      console.log("  answer:", answered.answer.slice(0, 120));
+    } else {
+      console.warn("  ⚠ no `answer` string on ask response — gateway shape may have drifted from AskResult");
+      console.warn("  raw ask response:", preview(answered));
+    }
 
     step("forget");
     const forgotten = await deyta.memory.forget({
