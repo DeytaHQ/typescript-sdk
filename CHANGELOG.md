@@ -4,6 +4,19 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1]
+
+Metadata-only release. No source changes; published by the new standalone
+repo (`DeytaHQ/typescript-sdk`) with provenance attestations via npm
+Trusted Publishers (OIDC).
+
+### Changed
+- `package.json#repository` now points at the standalone SDK repository.
+- Tarballs now ship with a signed provenance attestation linking each
+  release to the GitHub Actions workflow run that produced it.
+- Build pipeline auto-injects the SDK version from `package.json` at build
+  time; the `src/version.ts` constant is no longer hand-maintained.
+
 ## [0.2.0]
 
 First npm release. Pre-1.0 to leave room for API adjustments based on early

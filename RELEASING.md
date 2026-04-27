@@ -21,21 +21,18 @@ breaking → major.
 
 ### 1. Bump the version
 
-There are **three** places to update the version. The CI verifies they match.
+The version lives in `package.json`. `src/version.ts` reads it via a tsup
+build-time substitution, so there's no second file to keep in sync.
 
 ```bash
 # 1. package.json
 npm version 0.3.0 --no-git-tag-version
 
-# 2. src/version.ts
-sed -i '' 's/SDK_VERSION = ".*"/SDK_VERSION = "0.3.0"/' src/version.ts
-
-# 3. CHANGELOG.md — add a "## [0.3.0]" section above the previous entry
+# 2. CHANGELOG.md — add a "## [0.3.0]" section above the previous entry
 ```
 
-The `package.json` and `src/version.ts` versions must match exactly — a CI
-check fails the build otherwise. The CHANGELOG must contain a `## [0.3.0]`
-heading or the release workflow refuses to publish.
+The CHANGELOG must contain a `## [0.3.0]` heading or the release workflow
+refuses to publish.
 
 ### 2. Write the CHANGELOG entry
 

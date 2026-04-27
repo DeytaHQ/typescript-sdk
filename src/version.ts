@@ -1,5 +1,4 @@
-/**
- * Kept in sync with `package.json#version` by the prepublishOnly script.
- * If you bump the package version, update this constant too.
- */
-export const SDK_VERSION = "0.2.0";
+declare const __SDK_VERSION__: string;
+
+export const SDK_VERSION =
+  typeof __SDK_VERSION__ !== "undefined" ? __SDK_VERSION__ : "0.0.0-dev";
