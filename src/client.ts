@@ -253,6 +253,27 @@ export class HttpClient {
   }
 }
 
+/**
+ * Encode a single URL path segment safely.
+ *
+ * `encodeURIComponent` alone leaves `.` and `..` untouched, so they would
+ * still resolve as path traversal once the URL is parsed. Empty strings
+ * collapse the segment and can hit a list endpoint with the caller's bearer
+ * token. Reject those up front, then percent-encode everything else —
+ * including `/`, `?`, `#`, and spaces — so a caller-supplied identifier
+ * cannot break out of its path segment.
+ */
+export function seg(s: string): string {
+  if (typeof s !== "string" || s.length === 0 || s === "." || s === "..") {
+    throw new DeytaError(
+      "BAD_REQUEST",
+      `Invalid path identifier: ${JSON.stringify(s)}`,
+      400,
+    );
+  }
+  return encodeURIComponent(s);
+}
+
 /** Build a query string from an object, omitting undefined / null values. */
 export function buildQuery(params: object): string {
   const entries: string[] = [];

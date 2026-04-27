@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { Deyta } from "../src/index.js";
+import { Deyta, DeytaError } from "../src/index.js";
 import { FetchMock, jsonOk, jsonPaginated, noBody } from "./_fetch-mock.js";
 
 function setup() {
@@ -52,6 +52,83 @@ describe("Namespaces CRUD", () => {
     mock.setHandler(() => noBody());
     const result = await deyta.namespaces.delete("ns_1");
     expect(result).toBeUndefined();
+  });
+});
+
+describe("Namespaces path-segment encoding", () => {
+  test("get encodes traversal sequences instead of letting them resolve", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => jsonOk(ns("ns_1")));
+    await deyta.namespaces.get("../admin");
+    expect(mock.requests[0]?.url).toContain("/namespaces/..%2Fadmin");
+    expect(mock.requests[0]?.url).not.toContain("/namespaces/../admin");
+  });
+
+  test("get rejects '..' before any network call", async () => {
+    const { deyta, mock } = setup();
+    await expect(deyta.namespaces.get("..")).rejects.toMatchObject({
+      name: "DeytaError",
+      code: "BAD_REQUEST",
+    });
+    expect(mock.requests.length).toBe(0);
+  });
+
+  test("get rejects empty id before any network call", async () => {
+    const { deyta, mock } = setup();
+    await expect(deyta.namespaces.get("")).rejects.toBeInstanceOf(DeytaError);
+    expect(mock.requests.length).toBe(0);
+  });
+
+  test("get encodes embedded query separator", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => jsonOk(ns("ns_1")));
+    await deyta.namespaces.get("a?force=true");
+    expect(mock.requests[0]?.url).toContain("/namespaces/a%3Fforce%3Dtrue");
+  });
+
+  test("get encodes embedded slash", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => jsonOk(ns("ns_1")));
+    await deyta.namespaces.get("a/b");
+    expect(mock.requests[0]?.url).toContain("/namespaces/a%2Fb");
+  });
+
+  test("get encodes embedded fragment", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => jsonOk(ns("ns_1")));
+    await deyta.namespaces.get("a#x");
+    expect(mock.requests[0]?.url).toContain("/namespaces/a%23x");
+  });
+
+  test("getByExternalRef encodes traversal sequences", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => jsonOk(ns("ns_1")));
+    await deyta.namespaces.getByExternalRef("../../admin");
+    expect(mock.requests[0]?.url).toContain("/namespaces/external/..%2F..%2Fadmin");
+    expect(mock.requests[0]?.url).not.toContain("/admin");
+  });
+
+  test("getByExternalRef rejects '.'", async () => {
+    const { deyta, mock } = setup();
+    await expect(deyta.namespaces.getByExternalRef(".")).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(mock.requests.length).toBe(0);
+  });
+
+  test("delete encodes traversal sequences instead of routing to a sibling endpoint", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => noBody());
+    await deyta.namespaces.delete("../admin/keys/abc");
+    expect(mock.requests[0]?.method).toBe("DELETE");
+    expect(mock.requests[0]?.url).toContain("/namespaces/..%2Fadmin%2Fkeys%2Fabc");
+    expect(mock.requests[0]?.url).not.toContain("/admin/keys/abc");
+  });
+
+  test("delete rejects '..'", async () => {
+    const { deyta, mock } = setup();
+    await expect(deyta.namespaces.delete("..")).rejects.toBeInstanceOf(DeytaError);
+    expect(mock.requests.length).toBe(0);
   });
 });
 
