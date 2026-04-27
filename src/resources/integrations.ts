@@ -1,4 +1,4 @@
-import { buildQuery, type HttpClient } from "../client.js";
+import { buildQuery, seg, type HttpClient } from "../client.js";
 import type {
   CompleteConnectionInput,
   DataSourceConnection,
@@ -25,7 +25,7 @@ export class Integrations {
   }
 
   async getConnection(id: string, opts?: RequestOptions): Promise<DataSourceConnection> {
-    return this.http.get<DataSourceConnection>(`/integrations/connections/${id}`, opts);
+    return this.http.get<DataSourceConnection>(`/integrations/connections/${seg(id)}`, opts);
   }
 
   async startConnection(
@@ -47,6 +47,6 @@ export class Integrations {
   }
 
   async deleteConnection(id: string, opts?: RequestOptions): Promise<void> {
-    return this.http.delete(`/integrations/connections/${id}`, opts);
+    return this.http.delete(`/integrations/connections/${seg(id)}`, opts);
   }
 }
