@@ -15,10 +15,53 @@ function setup(overrides: Parameters<typeof Deyta>[0] extends infer C ? Partial<
 
 describe("HttpClient — request shape", () => {
   test("uses default baseUrl when omitted", async () => {
-    const { deyta, mock } = setup();
-    mock.setHandler(() => jsonOk({ id: "ns_1" }));
-    await deyta.namespaces.get("ns_1");
-    expect(mock.requests[0]?.url).toBe("https://api.deyta.ai/gateway/v1/namespaces/ns_1");
+    const prev = process.env.DEYTA_BASE_URL;
+    delete process.env.DEYTA_BASE_URL;
+    try {
+      const { deyta, mock } = setup();
+      mock.setHandler(() => jsonOk({ id: "ns_1" }));
+      await deyta.namespaces.get("ns_1");
+      expect(mock.requests[0]?.url).toBe("https://api.deyta.ai/gateway/v1/namespaces/ns_1");
+    } finally {
+      if (prev !== undefined) process.env.DEYTA_BASE_URL = prev;
+    }
+  });
+
+  test("falls back to DEYTA_BASE_URL when baseUrl omitted", async () => {
+    const prev = process.env.DEYTA_BASE_URL;
+    process.env.DEYTA_BASE_URL = "https://console.deyta.ai";
+    try {
+      const { deyta, mock } = setup();
+      mock.setHandler(() => jsonOk({ id: "ns_1" }));
+      await deyta.namespaces.get("ns_1");
+      expect(mock.requests[0]?.url).toBe(
+        "https://console.deyta.ai/gateway/v1/namespaces/ns_1",
+      );
+    } finally {
+      if (prev === undefined) delete process.env.DEYTA_BASE_URL;
+      else process.env.DEYTA_BASE_URL = prev;
+    }
+  });
+
+  test("explicit baseUrl beats DEYTA_BASE_URL", async () => {
+    const prev = process.env.DEYTA_BASE_URL;
+    process.env.DEYTA_BASE_URL = "https://console.deyta.ai";
+    try {
+      const mock = new FetchMock();
+      const deyta = new Deyta({
+        apiKey: "k",
+        baseUrl: "https://staging.deyta.ai",
+        fetch: mock.fetch,
+      });
+      mock.setHandler(() => jsonOk({ id: "x" }));
+      await deyta.namespaces.get("x");
+      expect(mock.requests[0]?.url).toBe(
+        "https://staging.deyta.ai/gateway/v1/namespaces/x",
+      );
+    } finally {
+      if (prev === undefined) delete process.env.DEYTA_BASE_URL;
+      else process.env.DEYTA_BASE_URL = prev;
+    }
   });
 
   test("respects explicit baseUrl override", async () => {

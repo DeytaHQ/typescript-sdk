@@ -13,10 +13,7 @@ if (!apiKey) {
   process.exit(1);
 }
 
-const deyta = new Deyta({
-  apiKey,
-  baseUrl: process.env.DEYTA_BASE_URL,
-});
+const deyta = new Deyta({ apiKey });
 
 // Two ways to scope: by ID or by external reference.
 const created = await deyta.namespaces.create({

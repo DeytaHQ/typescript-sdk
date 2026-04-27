@@ -1,0 +1,1 @@
+- 2026-04-27: DYT-3188: Add smoke scripts; SDK reads DEYTA_BASE_URL env var

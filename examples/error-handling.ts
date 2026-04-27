@@ -15,7 +15,6 @@ if (!apiKey) {
 
 const deyta = new Deyta({
   apiKey,
-  baseUrl: process.env.DEYTA_BASE_URL,
   // Tune retries for unreliable networks. Defaults: maxRetries=2.
   retries: { maxRetries: 3, initialBackoffMs: 500 },
   // Optional logger — emits request/response/retry/error events.

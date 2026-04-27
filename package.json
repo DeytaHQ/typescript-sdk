@@ -25,6 +25,11 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint src __tests__",
     "test": "bun test",
+    "smoke": "bun run scripts/smoke/all.ts",
+    "smoke:namespaces": "bun run scripts/smoke/namespaces.ts",
+    "smoke:memory": "bun run scripts/smoke/memory.ts",
+    "smoke:integrations": "bun run scripts/smoke/integrations.ts",
+    "smoke:personas": "bun run scripts/smoke/personas.ts",
     "clean": "rm -rf dist",
     "prepublishOnly": "bun run clean && bun run type-check && bun run lint && bun test && bun run build"
   },

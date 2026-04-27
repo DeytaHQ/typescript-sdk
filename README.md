@@ -63,7 +63,7 @@ The scope is a lightweight handle — no network call is made when constructing 
 ```ts
 const deyta = new Deyta({
   apiKey: "your-api-key",     // Required.
-  baseUrl: "https://...",      // Optional. Default: https://api.deyta.ai
+  baseUrl: "https://...",      // Optional. Falls back to DEYTA_BASE_URL env var, then https://api.deyta.ai.
   timeout: 30_000,             // Optional. Per-request timeout in ms. Default: 30_000.
   retries: {                   // Optional. Default: 2 retries with exponential backoff.
     maxRetries: 2,
@@ -343,6 +343,49 @@ Runnable examples live under [`examples/`](./examples):
 ```bash
 DEYTA_API_KEY=… bun run examples/quickstart.ts
 ```
+
+## Smoke tests
+
+End-to-end scripts under [`scripts/smoke/`](./scripts/smoke) exercise each resource against a real API. Useful for verifying staging or release builds before publishing.
+
+### Configuration
+
+Both vars are read from the environment:
+
+| Variable          | Required | Purpose                                                      |
+|-------------------|----------|--------------------------------------------------------------|
+| `DEYTA_API_KEY`   | yes      | Bearer token. Scripts exit `1` if missing.                   |
+| `DEYTA_BASE_URL`  | no       | API base URL. Defaults to `https://api.deyta.ai`.            |
+
+Set them inline, export them in your shell, or drop them into a `.env` file (bun auto-loads it):
+
+```bash
+# inline
+DEYTA_API_KEY=sk_… DEYTA_BASE_URL=https://staging.deyta.ai bun run smoke
+
+# or shell-exported
+export DEYTA_API_KEY=sk_…
+export DEYTA_BASE_URL=https://staging.deyta.ai
+bun run smoke
+```
+
+### Available scripts
+
+| Script                   | Covers                                                            |
+|--------------------------|-------------------------------------------------------------------|
+| `bun run smoke`          | All four suites in sequence (fail-fast).                          |
+| `bun run smoke:namespaces` | create / get / `getByExternalRef` / list / iterate / delete     |
+| `bun run smoke:memory`     | scratch namespace → remember / recall / ask / forget → cleanup  |
+| `bun run smoke:integrations` | `listProviders`, `listConnections` (read-only — OAuth skipped) |
+| `bun run smoke:personas`   | create / get / update / list / status / delete                  |
+
+`smoke:personas` accepts `-- --build` to additionally trigger an async Digor build (not awaited to completion):
+
+```bash
+bun run smoke:personas -- --build
+```
+
+Every script wraps its work in `try / finally` so a failure mid-run still cleans up the namespace or persona it created.
 
 ## Requirements
 
