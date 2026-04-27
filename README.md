@@ -227,7 +227,7 @@ await deyta.integrations.deleteConnection(completed.id);
 
 ## Personas
 
-A persona is a top-level resource that owns a backing namespace created automatically at the same time. The persona's `id` is the underlying Digor `agent_id` and is the handle used by every other persona operation.
+A persona is a top-level resource that owns a backing namespace created automatically at the same time. The persona's `id` is stable across SDK calls and is the handle used by every other persona operation.
 
 ### Create
 
@@ -252,20 +252,20 @@ for await (const p of deyta.personas.iterate({ page_size: 50 })) {
 }
 ```
 
-### Read (with Digor composite)
+### Read (with composite document)
 
 ```ts
 const result = await deyta.personas.get(persona.id);
 // or: const result = await deyta.personas.getByExternalRef("user-abc");
 
-if (result.digor.available) {
-  result.digor.data; // ComposedPersona — identity, traits, episodes, peers, facets, providers, ...
+if (result.composite.available) {
+  result.composite.data; // ComposedPersona — identity, traits, episodes, peers, facets, providers, ...
 } else {
-  // Local record exists but Digor has lost the binding — call build() and poll status().
+  // Local record exists but the composite has not been produced yet — call build() and poll status().
 }
 ```
 
-Returns `404 NOT_FOUND` when the persona doesn't exist locally; `503` when Digor is unreachable. When Digor merely hasn't built the persona yet, the response is shaped `{ ...persona, digor: { available: false } }` instead of an error.
+Returns `404 NOT_FOUND` when the persona doesn't exist locally; `503` when the gateway can't reach the composite service. When the composite simply hasn't been produced yet, the response is shaped `{ ...persona, composite: { available: false } }` instead of an error.
 
 ### Update / delete
 
@@ -371,15 +371,15 @@ bun run smoke
 
 ### Available scripts
 
-| Script                   | Covers                                                            |
-|--------------------------|-------------------------------------------------------------------|
-| `bun run smoke`          | All four suites in sequence (fail-fast).                          |
-| `bun run smoke:namespaces` | create / get / `getByExternalRef` / list / iterate / delete     |
-| `bun run smoke:memory`     | scratch namespace → remember / recall / ask / forget → cleanup  |
-| `bun run smoke:integrations` | `listProviders`, `listConnections` (read-only — OAuth skipped) |
-| `bun run smoke:personas`   | create / get / update / list / status / delete                  |
+| Script                         | Covers                                                          |
+| ------------------------------ | --------------------------------------------------------------- |
+| `bun run smoke`                | All four suites in sequence (fail-fast).                        |
+| `bun run smoke:namespaces`     | create / get / `getByExternalRef` / list / iterate / delete     |
+| `bun run smoke:memory`         | scratch namespace → remember / recall / ask / forget → cleanup  |
+| `bun run smoke:integrations`   | `listProviders`, `listConnections` (read-only — OAuth skipped)  |
+| `bun run smoke:personas`       | create / get / update / list / status / delete                  |
 
-`smoke:personas` accepts `-- --build` to additionally trigger an async Digor build (not awaited to completion):
+`smoke:personas` accepts `-- --build` to additionally trigger an async build (not awaited to completion):
 
 ```bash
 bun run smoke:personas -- --build

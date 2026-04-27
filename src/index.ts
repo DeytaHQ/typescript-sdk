@@ -58,7 +58,7 @@ export type {
 
   // Personas
   Persona,
-  PersonaWithDigor,
+  PersonaWithComposite,
   PersonaBuildStatus,
   PersonaStatusValue,
   BuildAccepted,

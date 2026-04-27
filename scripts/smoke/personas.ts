@@ -1,7 +1,7 @@
 /**
  * Smoke test the personas resource: create, get, getByExternalRef, update,
  * list, status, delete. The async build endpoint is exercised behind
- * `--build` since builds can take minutes.
+ * `--build` since builds may take minutes to complete.
  *
  * Run: DEYTA_API_KEY=… bun run scripts/smoke/personas.ts
  *      DEYTA_API_KEY=… bun run scripts/smoke/personas.ts --build
@@ -25,7 +25,7 @@ await runSmoke("personas", async () => {
   try {
     step("get by id");
     const fetched = await deyta.personas.get(persona.id);
-    console.log("  digor.available:", fetched.digor.available);
+    console.log("  composite.available:", fetched.composite.available);
 
     step("get by external_reference_id");
     const byRef = await deyta.personas.getByExternalRef(externalRef);

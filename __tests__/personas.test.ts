@@ -85,7 +85,7 @@ describe("Personas", () => {
     expect(ids).toEqual(["agt_1", "agt_2", "agt_3"]);
   });
 
-  test("get returns PersonaWithDigor (available=true)", async () => {
+  test("get maps wire `digor` envelope to SDK `composite` (available=true)", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonOk({
@@ -98,20 +98,22 @@ describe("Personas", () => {
     );
     const result = await deyta.personas.get("agt_1");
     expect(result.id).toBe("agt_1");
-    expect(result.digor.available).toBe(true);
-    if (result.digor.available) {
-      expect(result.digor.data.agent_id).toBe("agt_1");
+    expect(result.composite.available).toBe(true);
+    if (result.composite.available) {
+      expect(result.composite.data.agent_id).toBe("agt_1");
     }
+    // The wire `digor` field is not surfaced on the SDK return value.
+    expect((result as unknown as { digor?: unknown }).digor).toBeUndefined();
     expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1$/);
   });
 
-  test("get surfaces digor.available=false envelope", async () => {
+  test("get surfaces composite.available=false envelope", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonOk({ ...persona(), digor: { available: false } }),
     );
     const result = await deyta.personas.get("agt_1");
-    expect(result.digor.available).toBe(false);
+    expect(result.composite.available).toBe(false);
   });
 
   test("getByExternalRef hits /personas/reference/:externalRef", async () => {

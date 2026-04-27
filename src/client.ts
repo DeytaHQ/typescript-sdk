@@ -37,7 +37,9 @@ export interface DeytaConfig {
   /**
    * Base URL of the Deyta API. Resolution order:
    *   1. Explicit `baseUrl` passed here
-   *   2. `process.env.DEYTA_BASE_URL`
+   *   2. `process.env.DEYTA_BASE_URL` (read once at construction — load env
+   *      vars before instantiating the client; a whitespace-only value
+   *      logs a `console.warn` and falls through to the default)
    *   3. `https://api.deyta.ai`
    */
   baseUrl?: string;
@@ -299,9 +301,16 @@ export function buildQuery(params: object): string {
 
 function resolveBaseUrl(explicit?: string): string {
   if (explicit) return explicit;
-  const fromEnv = globalThis.process?.env?.DEYTA_BASE_URL;
-  if (fromEnv) return fromEnv;
-  return DEFAULT_BASE_URL;
+  const raw = globalThis.process?.env?.DEYTA_BASE_URL;
+  if (raw === undefined) return DEFAULT_BASE_URL;
+  const trimmed = raw.trim();
+  if (trimmed === "") {
+    console.warn(
+      `[deyta-sdk] DEYTA_BASE_URL is set but empty; falling back to ${DEFAULT_BASE_URL}.`,
+    );
+    return DEFAULT_BASE_URL;
+  }
+  return trimmed;
 }
 
 function resolveRetryConfig(cfg?: RetryConfig): ResolvedRetryConfig {

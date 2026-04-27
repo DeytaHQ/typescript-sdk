@@ -159,10 +159,10 @@ export interface ListNamespacesParams {
 // ── Personas ────────────────────────────────────────────────────────
 
 /**
- * Top-level persona record. `id` is the underlying Digor `agent_id` and is
- * stable across SDK calls — pass it to `build()`, `status()`, `update()`, and
- * `delete()`. Each persona owns a backing namespace (`namespaceId`) created
- * automatically; that namespace is where memory and integrations land.
+ * Top-level persona record. `id` is stable across SDK calls — pass it to
+ * `build()`, `status()`, `update()`, and `delete()`. Each persona owns a
+ * backing namespace (`namespaceId`) created automatically; that namespace
+ * is where memory and integrations land.
  */
 export interface Persona {
   id: string;
@@ -177,10 +177,9 @@ export interface Persona {
 }
 
 /**
- * Composite persona document returned by the upstream Digor service. The
- * shape is permissive (identity, traits, episodes, peers, facets, providers,
- * source_event_count, …); upstream may add fields, captured by the index
- * signature.
+ * Composite persona document returned by the gateway. The shape is permissive
+ * (identity, traits, episodes, peers, facets, providers, source_event_count,
+ * …); the API may add fields, captured by the index signature.
  */
 export interface ComposedPersona {
   agent_id: string;
@@ -188,13 +187,13 @@ export interface ComposedPersona {
 }
 
 /**
- * A `Persona` enriched with Digor's composite document. When Digor has lost
- * the binding (the persona exists locally but has not been built) the SDK
- * surfaces `digor.available: false` instead of throwing — the local record is
- * still intact and can be rebuilt with `personas.build(id)`.
+ * A `Persona` enriched with its composite document. When the gateway has not
+ * yet produced a composite for this persona, `composite.available` is
+ * `false` instead of throwing — the local record is still intact and can be
+ * rebuilt with `personas.build(id)`.
  */
-export type PersonaWithDigor = Persona & {
-  digor:
+export type PersonaWithComposite = Persona & {
+  composite:
     | { available: true; data: ComposedPersona }
     | { available: false };
 };

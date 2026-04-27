@@ -2,19 +2,36 @@ import { buildQuery, seg, type HttpClient, type PaginatedResult } from "../clien
 import { paginate, type IterateParams } from "../pagination.js";
 import type {
   BuildAccepted,
+  ComposedPersona,
   CreatePersonaInput,
   ListPersonasParams,
   Persona,
   PersonaBuildStatus,
-  PersonaWithDigor,
+  PersonaWithComposite,
   RequestOptions,
   UpdatePersonaInput,
 } from "../types.js";
 
 /**
+ * Wire shape returned by `GET /personas/:id`. The gateway field name is
+ * mapped to `composite` at the SDK surface so callers don't have to care
+ * about upstream naming.
+ */
+type PersonaGetResponse = Persona & {
+  digor:
+    | { available: true; data: ComposedPersona }
+    | { available: false };
+};
+
+function mapToComposite(wire: PersonaGetResponse): PersonaWithComposite {
+  const { digor, ...rest } = wire;
+  return { ...rest, composite: digor };
+}
+
+/**
  * Top-level persona resource. A persona owns a backing namespace created at
- * the same time; the persona's `id` is its underlying Digor `agent_id` and
- * is the handle used by every other persona operation.
+ * the same time; the persona's `id` is the handle used by every other
+ * persona operation.
  */
 export class Personas {
   constructor(private readonly http: HttpClient) {}
@@ -45,22 +62,24 @@ export class Personas {
   }
 
   /**
-   * Read a persona merged with its Digor composite document. When Digor has
-   * lost the binding, `digor.available` is `false` and the local record is
-   * returned without throwing.
+   * Read a persona merged with its composite document. When the composite
+   * has not yet been produced, `composite.available` is `false` and the
+   * local record is returned without throwing.
    */
-  async get(id: string, opts?: RequestOptions): Promise<PersonaWithDigor> {
-    return this.http.get<PersonaWithDigor>(`/personas/${seg(id)}`, opts);
+  async get(id: string, opts?: RequestOptions): Promise<PersonaWithComposite> {
+    const wire = await this.http.get<PersonaGetResponse>(`/personas/${seg(id)}`, opts);
+    return mapToComposite(wire);
   }
 
   async getByExternalRef(
     externalRef: string,
     opts?: RequestOptions,
-  ): Promise<PersonaWithDigor> {
-    return this.http.get<PersonaWithDigor>(
+  ): Promise<PersonaWithComposite> {
+    const wire = await this.http.get<PersonaGetResponse>(
       `/personas/reference/${seg(externalRef)}`,
       opts,
     );
+    return mapToComposite(wire);
   }
 
   async update(
@@ -77,7 +96,7 @@ export class Personas {
 
   // ── Build lifecycle ───────────────────────────────────────────────
 
-  /** Trigger an async Digor build of the persona. Returns 202 with a `build_id`. */
+  /** Trigger an async build of the persona. Returns 202 with a `build_id`. */
   async build(id: string, opts?: RequestOptions): Promise<BuildAccepted> {
     return this.http.post<BuildAccepted>(`/personas/${seg(id)}/build`, undefined, opts);
   }
