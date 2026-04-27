@@ -17,6 +17,26 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 - **Breaking** `DataSourceConnection` field names switched to camelCase (`namespaceId`, `connectionId`, `sessionId`, `authLinkUrl`, `createdBy`, `createdAt`, `updatedAt`, `orgId`) and gained `personaId: string | null` (set when the connection's namespace backs a persona).
 - The namespace sub-client (`deyta.namespaces.scope(id).integrations`) automatically translates the captured namespace into `{ type: "namespace", … }` — no caller-side changes if you were already going through the scope.
 
+### Security
+- The `seg()` path-segment validator from 0.2.3 is now applied to every persona endpoint as well (`get`, `getByExternalRef`, `update`, `delete`, `build`, `status`). Caller-supplied IDs are encoded and `""` / `"."` / `".."` are rejected up front.
+
+## [0.2.3]
+
+Security release. Path identifiers passed to namespace and connection
+endpoints are now URL-encoded, and identifiers that are empty, `"."`, or
+`".."` are rejected with `DeytaError("BAD_REQUEST")`. Previously, untrusted
+identifiers (notably `external_reference_id`) could traverse out of
+`/gateway/v1/...` (CWE-23) or inject query parameters (CWE-88) under the
+caller's bearer token.
+
+### Security
+- Encode and validate path segments at five call sites:
+  `Namespaces.get`, `Namespaces.getByExternalRef`, `Namespaces.delete`,
+  `Integrations.getConnection`, `Integrations.deleteConnection`. Indirect
+  callers (`NamespaceScope.metadata`, `NamespaceScope.delete`,
+  `Namespaces.scopeByExternalRef`) inherit the fix because they delegate
+  to these methods. Affects `0.2.2` and earlier.
+
 ## [0.2.2]
 
 Re-attempt of the 0.2.1 release. The 0.2.1 publish failed because the

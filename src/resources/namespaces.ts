@@ -1,4 +1,4 @@
-import { buildQuery, type HttpClient, type PaginatedResult } from "../client.js";
+import { buildQuery, seg, type HttpClient, type PaginatedResult } from "../client.js";
 import { paginate, type IterateParams } from "../pagination.js";
 import type { Integrations } from "./integrations.js";
 import type { Memory } from "./memory.js";
@@ -44,15 +44,15 @@ export class Namespaces {
   }
 
   async get(id: string, opts?: RequestOptions): Promise<Namespace> {
-    return this.http.get<Namespace>(`/namespaces/${id}`, opts);
+    return this.http.get<Namespace>(`/namespaces/${seg(id)}`, opts);
   }
 
   async getByExternalRef(externalRef: string, opts?: RequestOptions): Promise<Namespace> {
-    return this.http.get<Namespace>(`/namespaces/external/${externalRef}`, opts);
+    return this.http.get<Namespace>(`/namespaces/external/${seg(externalRef)}`, opts);
   }
 
   async delete(id: string, opts?: RequestOptions): Promise<void> {
-    return this.http.delete(`/namespaces/${id}`, opts);
+    return this.http.delete(`/namespaces/${seg(id)}`, opts);
   }
 
   // ── Sub-clients ───────────────────────────────────────────────────

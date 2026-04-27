@@ -1,4 +1,4 @@
-import { buildQuery, type HttpClient, type PaginatedResult } from "../client.js";
+import { buildQuery, seg, type HttpClient, type PaginatedResult } from "../client.js";
 import { paginate, type IterateParams } from "../pagination.js";
 import type {
   BuildAccepted,
@@ -50,7 +50,7 @@ export class Personas {
    * returned without throwing.
    */
   async get(id: string, opts?: RequestOptions): Promise<PersonaWithDigor> {
-    return this.http.get<PersonaWithDigor>(`/personas/${id}`, opts);
+    return this.http.get<PersonaWithDigor>(`/personas/${seg(id)}`, opts);
   }
 
   async getByExternalRef(
@@ -58,7 +58,7 @@ export class Personas {
     opts?: RequestOptions,
   ): Promise<PersonaWithDigor> {
     return this.http.get<PersonaWithDigor>(
-      `/personas/reference/${encodeURIComponent(externalRef)}`,
+      `/personas/reference/${seg(externalRef)}`,
       opts,
     );
   }
@@ -68,22 +68,22 @@ export class Personas {
     input: UpdatePersonaInput,
     opts?: RequestOptions,
   ): Promise<Persona> {
-    return this.http.request<Persona>("PATCH", `/personas/${id}`, input, opts);
+    return this.http.request<Persona>("PATCH", `/personas/${seg(id)}`, input, opts);
   }
 
   async delete(id: string, opts?: RequestOptions): Promise<void> {
-    return this.http.delete(`/personas/${id}`, opts);
+    return this.http.delete(`/personas/${seg(id)}`, opts);
   }
 
   // ── Build lifecycle ───────────────────────────────────────────────
 
   /** Trigger an async Digor build of the persona. Returns 202 with a `build_id`. */
   async build(id: string, opts?: RequestOptions): Promise<BuildAccepted> {
-    return this.http.post<BuildAccepted>(`/personas/${id}/build`, undefined, opts);
+    return this.http.post<BuildAccepted>(`/personas/${seg(id)}/build`, undefined, opts);
   }
 
   /** Read the current build state — `building`, `ready`, or `not_built`. */
   async status(id: string, opts?: RequestOptions): Promise<PersonaBuildStatus> {
-    return this.http.get<PersonaBuildStatus>(`/personas/${id}/status`, opts);
+    return this.http.get<PersonaBuildStatus>(`/personas/${seg(id)}/status`, opts);
   }
 }
