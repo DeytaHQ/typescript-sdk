@@ -23,15 +23,19 @@
   "scripts": {
     "build": "tsup",
     "type-check": "tsc --noEmit",
+    "lint": "eslint src __tests__",
     "test": "bun test",
     "clean": "rm -rf dist",
-    "prepublishOnly": "bun run clean && bun run type-check && bun test && bun run build"
+    "prepublishOnly": "bun run clean && bun run type-check && bun run lint && bun test && bun run build"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@types/bun": "latest",
     "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
     "tsup": "^8.0.0",
-    "typescript": "latest"
+    "typescript": "latest",
+    "typescript-eslint": "^8.0.0"
   },
   "license": "MIT",
   "author": "Deyta <support@deyta.ai>",

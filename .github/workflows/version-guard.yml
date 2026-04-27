@@ -1,0 +1,43 @@
+name: Version guard
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "package.json"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure version bump or CHANGELOG entry
+        run: |
+          BASE_REF="${{ github.base_ref }}"
+          git fetch origin "$BASE_REF" --depth=1
+
+          BASE_PKG=$(git show "origin/$BASE_REF:package.json" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
+          HEAD_PKG=$(node -p "require('./package.json').version")
+
+          if [ "$BASE_PKG" != "$HEAD_PKG" ]; then
+            echo "Version bumped: $BASE_PKG -> $HEAD_PKG"
+            exit 0
+          fi
+
+          # Allow PRs that touch only docs/CI/tests without a version bump,
+          # but if src/ changed, require either a bump or a CHANGELOG entry.
+          if git diff --name-only "origin/$BASE_REF...HEAD" | grep -qE '^src/'; then
+            if git diff --name-only "origin/$BASE_REF...HEAD" | grep -q '^CHANGELOG\.md$'; then
+              echo "src/ changed and CHANGELOG.md updated. OK."
+              exit 0
+            fi
+            echo "::error::src/ changed without a version bump or CHANGELOG.md entry."
+            echo "Either bump the version (and update src/version.ts + CHANGELOG.md)"
+            echo "or add a CHANGELOG entry under '## [Unreleased]' if this change ships in a future release."
+            exit 1
+          fi
+
+          echo "No src/ changes; no version bump required."

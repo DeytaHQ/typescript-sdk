@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Type-check
+        run: bun run type-check
+
+      - name: Test
+        run: bun test
+
+      - name: Build
+        run: bun run build
+
+      - name: Pack (dry-run)
+        run: npm pack --dry-run
+
+      - name: Verify version is in sync
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          SRC_VERSION=$(node -p "require('./dist/index.cjs').SDK_VERSION")
+          if [ "$PKG_VERSION" != "$SRC_VERSION" ]; then
+            echo "::error::package.json version ($PKG_VERSION) does not match SDK_VERSION ($SRC_VERSION)"
+            echo "Update src/version.ts to match package.json."
+            exit 1
+          fi
+          echo "Version in sync: $PKG_VERSION"
