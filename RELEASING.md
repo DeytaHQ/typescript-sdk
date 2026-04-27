@@ -136,28 +136,41 @@ even within 72h it breaks downstream lockfiles. Instead:
 
 ## NPM authentication
 
-The release workflow currently uses an `NPM_TOKEN` secret. To set it up:
+This repo publishes via npm **Trusted Publishers** (OIDC) — no secret is
+stored in GitHub Actions. The npm registry trusts the GitHub Actions OIDC
+identity for this exact `<org>/<repo>/<workflow-filename>` triple, and
+each published tarball carries a signed provenance attestation.
 
-1. Create an automation token at https://www.npmjs.com/settings/<your-user>/tokens
-   with type **Granular** and **Read and publish** access scoped to
-   `@deyta-ai/sdk`.
-2. Add it as `NPM_TOKEN` in this repo's GitHub Actions secrets.
-
-### Upgrading to Trusted Publishers (OIDC, recommended)
-
-Once you're comfortable, switch to OIDC-based publishing — no secret
-required, signed provenance proves the tarball came from this exact
-workflow run:
+If the trusted publisher is ever revoked or you need to reconfigure:
 
 1. Go to https://www.npmjs.com/package/@deyta-ai/sdk/access
-2. Click **Trusted Publishers** → **Add publisher**
-3. Choose **GitHub Actions**, fill in:
-   - Organization: `<your-gh-org>`
-   - Repository: `<this-repo-name>`
+2. **Trusted Publishers** → **Add publisher** → **GitHub Actions**
+3. Fill in:
+   - Organization: `DeytaHQ`
+   - Repository: `typescript-sdk`
    - Workflow filename: `release.yml`
-   - Environment: leave blank (or set if you use environments)
-4. In `release.yml`, remove the `NODE_AUTH_TOKEN` env line. Keep
-   `permissions.id-token: write` and the `setup-node` step with
-   `registry-url`. That's it.
+   - Environment: leave blank
+4. Save.
 
-After that, you can also revoke the `NPM_TOKEN` secret.
+The `release.yml` workflow already has the required pieces:
+
+- `permissions: id-token: write` (allows GitHub to mint an OIDC token)
+- `actions/setup-node` with `registry-url: "https://registry.npmjs.org"`
+  (writes a registry-aware `.npmrc` for `npm publish`)
+- `npm publish --provenance --access public` (verifies OIDC, attaches
+  provenance attestation, publishes)
+
+No `NPM_TOKEN` secret is needed and none should be added — adding one
+would override the OIDC flow and silently fall back to token-based auth.
+
+### Manual publish from a laptop (rare)
+
+If you ever need to publish outside CI (recovery, special circumstance):
+
+```bash
+npm login                 # interactive, prompts for 2FA
+npm publish --provenance  # only OIDC publishes can attach provenance, so manual publishes are unattested
+```
+
+Manual publishes don't get provenance attestations. Prefer fixing CI and
+re-tagging over publishing manually.
