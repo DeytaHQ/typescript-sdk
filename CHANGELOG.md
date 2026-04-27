@@ -4,6 +4,13 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `deyta.personas` resource exposing the four `/gateway/v1/personas` endpoints (ADR-072 / DYT-3181): `create` (idempotent), `build`, `status`, `read`. Each method accepts a `NamespaceTarget` (`namespace_id` or `external_reference_id`); `create` returns `PersonaBinding`, `build` returns `BuildAccepted`, `status` returns `PersonaStatus` (`building` / `ready` / `not_built`), and `read` returns the composite `ComposedPersona`.
+- `NamespacePersonasScope` available as `deyta.namespaces.scope(id).personas` — drops the namespace target so callers only pass operation-specific fields like `subject`.
+- Public types: `PersonaBinding`, `PersonaRole`, `PersonaStatus`, `PersonaStatusValue`, `BuildAccepted`, `ComposedPersona`, `CreatePersonaInput`.
+
 ## [0.2.2]
 
 Re-attempt of the 0.2.1 release. The 0.2.1 publish failed because the

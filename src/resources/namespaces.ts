@@ -3,6 +3,7 @@ import { paginate, type IterateParams } from "../pagination.js";
 import type { Integrations } from "./integrations.js";
 import type { Memory } from "./memory.js";
 import { NamespaceScope } from "./namespace-scope.js";
+import type { Personas } from "./personas.js";
 import type {
   CreateNamespaceInput,
   ListNamespacesParams,
@@ -15,6 +16,7 @@ export class Namespaces {
     private readonly http: HttpClient,
     private readonly memory: Memory,
     private readonly integrations: Integrations,
+    private readonly personas: Personas,
   ) {}
 
   // ── CRUD ──────────────────────────────────────────────────────────
@@ -67,6 +69,7 @@ export class Namespaces {
       this.memory,
       this,
       this.integrations,
+      this.personas,
       { namespace_id: id },
     );
   }
@@ -81,6 +84,7 @@ export class Namespaces {
       this.memory,
       this,
       this.integrations,
+      this.personas,
       { external_reference_id: externalRef },
     );
   }

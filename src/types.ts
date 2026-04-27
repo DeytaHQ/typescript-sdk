@@ -146,6 +146,58 @@ export interface ListNamespacesParams {
   page_size?: number;
 }
 
+// ── Personas ────────────────────────────────────────────────────────
+
+export type PersonaRole = "primary" | string;
+
+/**
+ * A binding between a namespace and a persona's underlying `agent_id`. The
+ * gateway hides `agent_id` behind namespace-scoped resolution; it is returned
+ * here for callers that need to correlate with audit logs or build IDs.
+ */
+export interface PersonaBinding {
+  agent_id: string;
+  namespace_id: string;
+  role: PersonaRole;
+  subject: string | null;
+  is_active: boolean;
+  last_built_at: string | null;
+  created_at: string;
+  updated_at: string;
+  [key: string]: unknown;
+}
+
+export type PersonaStatusValue = "building" | "ready" | "not_built";
+
+export interface PersonaStatus {
+  agent_id: string;
+  status: PersonaStatusValue;
+  last_built_at: string | null;
+  [key: string]: unknown;
+}
+
+export interface BuildAccepted {
+  build_id: string;
+  agent_id: string;
+  status: "accepted";
+  [key: string]: unknown;
+}
+
+/**
+ * Composite persona document — identity, traits, episodes, peers, facets, and
+ * provider source counts. The shape is intentionally permissive: upstream may
+ * add fields, captured by the index signature.
+ */
+export interface ComposedPersona {
+  agent_id: string;
+  [key: string]: unknown;
+}
+
+export type CreatePersonaInput = NamespaceTarget & {
+  /** Free-form subject — set on the first call only. Ignored on subsequent calls. */
+  subject: string;
+};
+
 // ── Integrations ────────────────────────────────────────────────────
 
 export interface IntegrationSetting {

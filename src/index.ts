@@ -8,7 +8,11 @@ export type {
 } from "./client.js";
 export { DeytaError, DeytaConnectionError } from "./errors.js";
 export type { ErrorCode } from "./errors.js";
-export { NamespaceScope, NamespaceIntegrationsScope } from "./resources/namespace-scope.js";
+export {
+  NamespaceScope,
+  NamespaceIntegrationsScope,
+  NamespacePersonasScope,
+} from "./resources/namespace-scope.js";
 export { SDK_VERSION } from "./version.js";
 export type {
   // Response envelopes
@@ -51,5 +55,14 @@ export type {
   StartConnectionInput,
   StartConnectionResult,
   CompleteConnectionInput,
+
+  // Personas
+  PersonaBinding,
+  PersonaRole,
+  PersonaStatus,
+  PersonaStatusValue,
+  BuildAccepted,
+  ComposedPersona,
+  CreatePersonaInput,
 } from "./types.js";
 export type { IterateParams } from "./pagination.js";

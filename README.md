@@ -54,6 +54,12 @@ await ns.delete();
 // Integrations scoped to this namespace
 const connections = await ns.integrations.list();
 const session = await ns.integrations.start({ provider: "google_drive" });
+
+// Persona lifecycle scoped to this namespace
+await ns.personas.create({ subject: "Alice" });
+await ns.personas.build();
+const status = await ns.personas.status();   // "building" | "ready" | "not_built"
+const persona = await ns.personas.read();
 ```
 
 The scope is a lightweight handle — no network call is made when constructing it.
@@ -205,6 +211,58 @@ const completed = await ns.integrations.complete({
 });
 
 await ns.integrations.delete(completed.id);
+```
+
+## Personas
+
+The persona endpoints expose a four-call lifecycle on top of `/gateway/v1/personas` (ADR-072). The SDK hides the underlying `agent_id` behind namespace-scoped resolution: every call accepts either `namespace_id` or `external_reference_id`.
+
+### Create (idempotent)
+
+```ts
+const binding = await deyta.personas.create({
+  namespace_id: "ns_123",
+  subject: "Alice",
+});
+// binding: { agent_id, namespace_id, role: "primary", subject, ... }
+```
+
+The first call creates the primary binding (HTTP 201); subsequent calls return the existing binding (HTTP 200). `subject` is honored on the first call only.
+
+### Build
+
+```ts
+const { build_id } = await deyta.personas.build({ namespace_id: "ns_123" });
+// HTTP 202 — fire-and-forget. Poll `status()` to follow progress.
+```
+
+Not idempotent — the gateway returns `409 CONFLICT` if a build is already in flight.
+
+### Status
+
+```ts
+const { status, last_built_at } = await deyta.personas.status({ namespace_id: "ns_123" });
+// status: "building" | "ready" | "not_built"
+```
+
+### Read
+
+```ts
+const persona = await deyta.personas.read({ namespace_id: "ns_123" });
+// persona: { agent_id, identity, traits, episodes, peers, facets, providers, ... }
+```
+
+Returns `404 NOT_FOUND` when no binding exists or when the binding has not been built yet — call `status()` to disambiguate.
+
+### Scoped form
+
+```ts
+const ns = deyta.namespaces.scope("ns_123");
+
+await ns.personas.create({ subject: "Alice" });
+await ns.personas.build();
+await ns.personas.status();
+await ns.personas.read();
 ```
 
 ## Error handling
