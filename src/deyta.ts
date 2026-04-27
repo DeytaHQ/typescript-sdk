@@ -19,6 +19,6 @@ export class Deyta {
     this.memory = new Memory(http);
     this.integrations = new Integrations(http);
     this.personas = new Personas(http);
-    this.namespaces = new Namespaces(http, this.memory, this.integrations, this.personas);
+    this.namespaces = new Namespaces(http, this.memory, this.integrations);
   }
 }

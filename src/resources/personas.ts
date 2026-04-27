@@ -1,47 +1,89 @@
-import { buildQuery, type HttpClient } from "../client.js";
+import { buildQuery, type HttpClient, type PaginatedResult } from "../client.js";
+import { paginate, type IterateParams } from "../pagination.js";
 import type {
   BuildAccepted,
-  ComposedPersona,
   CreatePersonaInput,
-  NamespaceTarget,
-  PersonaBinding,
-  PersonaStatus,
+  ListPersonasParams,
+  Persona,
+  PersonaBuildStatus,
+  PersonaWithDigor,
   RequestOptions,
+  UpdatePersonaInput,
 } from "../types.js";
 
 /**
- * Persona lifecycle on top of `/gateway/v1/personas`. Each namespace has
- * exactly one persona; the gateway hides the underlying `agent_id` behind
- * namespace-scoped resolution, so every method takes either `namespace_id`
- * or `external_reference_id`.
+ * Top-level persona resource. A persona owns a backing namespace created at
+ * the same time; the persona's `id` is its underlying Digor `agent_id` and
+ * is the handle used by every other persona operation.
  */
 export class Personas {
   constructor(private readonly http: HttpClient) {}
 
-  /**
-   * Idempotent create. The first call for a namespace creates the primary
-   * binding (HTTP 201); subsequent calls return the existing binding (HTTP
-   * 200). `subject` is honoured on the first call only.
-   */
-  async create(input: CreatePersonaInput, opts?: RequestOptions): Promise<PersonaBinding> {
-    return this.http.post<PersonaBinding>("/personas", input, opts);
+  // ── CRUD ──────────────────────────────────────────────────────────
+
+  async create(input: CreatePersonaInput, opts?: RequestOptions): Promise<Persona> {
+    return this.http.post<Persona>("/personas", input, opts);
   }
 
-  /** Trigger an async build of the namespace's primary persona. */
-  async build(input: NamespaceTarget, opts?: RequestOptions): Promise<BuildAccepted> {
-    return this.http.post<BuildAccepted>("/personas/build", input, opts);
+  async list(
+    params?: ListPersonasParams,
+    opts?: RequestOptions,
+  ): Promise<PaginatedResult<Persona>> {
+    const query = buildQuery(params ?? {});
+    return this.http.getPaginated<Persona>(`/personas${query}`, opts);
+  }
+
+  /**
+   * Async iterator that walks every page of personas. Yields one `Persona`
+   * per item.
+   */
+  iterate(params?: IterateParams, opts?: RequestOptions): AsyncGenerator<Persona, void, void> {
+    const pageSize = params?.page_size;
+    return paginate<Persona>((page) =>
+      this.list({ page, page_size: pageSize }, opts),
+    );
+  }
+
+  /**
+   * Read a persona merged with its Digor composite document. When Digor has
+   * lost the binding, `digor.available` is `false` and the local record is
+   * returned without throwing.
+   */
+  async get(id: string, opts?: RequestOptions): Promise<PersonaWithDigor> {
+    return this.http.get<PersonaWithDigor>(`/personas/${id}`, opts);
+  }
+
+  async getByExternalRef(
+    externalRef: string,
+    opts?: RequestOptions,
+  ): Promise<PersonaWithDigor> {
+    return this.http.get<PersonaWithDigor>(
+      `/personas/reference/${encodeURIComponent(externalRef)}`,
+      opts,
+    );
+  }
+
+  async update(
+    id: string,
+    input: UpdatePersonaInput,
+    opts?: RequestOptions,
+  ): Promise<Persona> {
+    return this.http.request<Persona>("PATCH", `/personas/${id}`, input, opts);
+  }
+
+  async delete(id: string, opts?: RequestOptions): Promise<void> {
+    return this.http.delete(`/personas/${id}`, opts);
+  }
+
+  // ── Build lifecycle ───────────────────────────────────────────────
+
+  /** Trigger an async Digor build of the persona. Returns 202 with a `build_id`. */
+  async build(id: string, opts?: RequestOptions): Promise<BuildAccepted> {
+    return this.http.post<BuildAccepted>(`/personas/${id}/build`, undefined, opts);
   }
 
   /** Read the current build state — `building`, `ready`, or `not_built`. */
-  async status(input: NamespaceTarget, opts?: RequestOptions): Promise<PersonaStatus> {
-    return this.http.get<PersonaStatus>(`/personas/status${buildQuery(input)}`, opts);
-  }
-
-  /**
-   * Read the composite persona. Returns 404 when no binding exists or when
-   * the binding has not been built yet — call `status()` to disambiguate.
-   */
-  async read(input: NamespaceTarget, opts?: RequestOptions): Promise<ComposedPersona> {
-    return this.http.get<ComposedPersona>(`/personas${buildQuery(input)}`, opts);
+  async status(id: string, opts?: RequestOptions): Promise<PersonaBuildStatus> {
+    return this.http.get<PersonaBuildStatus>(`/personas/${id}/status`, opts);
   }
 }

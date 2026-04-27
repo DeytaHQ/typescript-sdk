@@ -7,9 +7,15 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 ## [0.3.0]
 
 ### Added
-- `deyta.personas` resource exposing the four `/gateway/v1/personas` endpoints: `create` (idempotent), `build`, `status`, `read`. Each method accepts a `NamespaceTarget` (`namespace_id` or `external_reference_id`); `create` returns `PersonaBinding`, `build` returns `BuildAccepted`, `status` returns `PersonaStatus` (`building` / `ready` / `not_built`), and `read` returns the composite `ComposedPersona`.
-- `NamespacePersonasScope` available as `deyta.namespaces.scope(id).personas` — drops the namespace target so callers only pass operation-specific fields like `subject`.
-- Public types: `PersonaBinding`, `PersonaRole`, `PersonaStatus`, `PersonaStatusValue`, `BuildAccepted`, `ComposedPersona`, `CreatePersonaInput`.
+- `deyta.personas` resource for the new top-level persona surface — `create`, `list`, `iterate`, `get`, `getByExternalRef`, `update`, `delete`, `build`, `status`. Each persona owns a backing namespace created automatically; the persona's `id` is the underlying Digor `agent_id`.
+- `get` and `getByExternalRef` return a `PersonaWithDigor` envelope that surfaces `digor.available: false` when Digor has lost the binding instead of throwing — the local record is still intact and can be rebuilt with `build()`.
+- Public types: `Persona`, `PersonaWithDigor`, `PersonaBuildStatus`, `PersonaStatusValue`, `BuildAccepted`, `ComposedPersona`, `CreatePersonaInput`, `UpdatePersonaInput`, `ListPersonasParams`, `Target`.
+
+### Changed
+- **Breaking** `Integrations.listConnections` now takes a typed `Target` (`{ type: "namespace" | "persona", id?, external_reference_id? }`) instead of a flat `NamespaceTarget`. Serialized to `target_type` / `target_id` / `target_external_reference_id` on the wire.
+- **Breaking** `Integrations.startConnection` body now wraps the target: `{ target: Target, provider }` instead of `{ namespace_id, provider }`.
+- **Breaking** `DataSourceConnection` field names switched to camelCase (`namespaceId`, `connectionId`, `sessionId`, `authLinkUrl`, `createdBy`, `createdAt`, `updatedAt`, `orgId`) and gained `personaId: string | null` (set when the connection's namespace backs a persona).
+- The namespace sub-client (`deyta.namespaces.scope(id).integrations`) automatically translates the captured namespace into `{ type: "namespace", … }` — no caller-side changes if you were already going through the scope.
 
 ## [0.2.2]
 

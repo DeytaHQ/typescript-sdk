@@ -54,12 +54,6 @@ await ns.delete();
 // Integrations scoped to this namespace
 const connections = await ns.integrations.list();
 const session = await ns.integrations.start({ provider: "google_drive" });
-
-// Persona lifecycle scoped to this namespace
-await ns.personas.create({ subject: "Alice" });
-await ns.personas.build();
-const status = await ns.personas.status();   // "building" | "ready" | "not_built"
-const persona = await ns.personas.read();
 ```
 
 The scope is a lightweight handle — no network call is made when constructing it.
@@ -188,21 +182,39 @@ const providers = await deyta.integrations.listProviders();
 
 ### Connections
 
+Connections target either a namespace or a persona via the typed `target` discriminator. Provide exactly one of `id` / `external_reference_id`:
+
 ```ts
-const connections = await ns.integrations.list();           // scoped (preferred)
-const connections = await deyta.integrations.listConnections({ namespace_id: "ns_123" });
+// Namespace-targeted (also what the scoped form uses under the hood)
+const connections = await deyta.integrations.listConnections({
+  type: "namespace",
+  id: "ns_123",
+});
+
+// Persona-targeted
+const connections = await deyta.integrations.listConnections({
+  type: "persona",
+  external_reference_id: "user-abc",
+});
+
+// Or via the namespace scope — target is captured implicitly
+const connections = await ns.integrations.list();
 
 const conn = await deyta.integrations.getConnection("conn_123");
+// conn.personaId — set when the connection's namespace backs a persona; null otherwise
 ```
 
 ### OAuth flow
 
 ```ts
-const start = await ns.integrations.start({ provider: "google_drive" });
+const start = await deyta.integrations.startConnection({
+  target: { type: "persona", id: persona.id },
+  provider: "google_drive",
+});
 // start.session_token — pass to @nangohq/frontend SDK
 // start.auth_link_url — OAuth redirect URL
 
-const completed = await ns.integrations.complete({
+const completed = await deyta.integrations.completeConnection({
   id: start.id,
   token: "oauth_token_from_nango",
   account_id: "account_id_from_nango",
@@ -210,60 +222,73 @@ const completed = await ns.integrations.complete({
   provider: "google_drive",
 });
 
-await ns.integrations.delete(completed.id);
+await deyta.integrations.deleteConnection(completed.id);
 ```
 
 ## Personas
 
-The persona endpoints expose a four-call lifecycle on top of `/gateway/v1/personas`. Each namespace has exactly one persona; the SDK hides the underlying `agent_id` behind namespace-scoped resolution, so every call accepts either `namespace_id` or `external_reference_id`.
+A persona is a top-level resource that owns a backing namespace created automatically at the same time. The persona's `id` is the underlying Digor `agent_id` and is the handle used by every other persona operation.
 
-### Create (idempotent)
+### Create
 
 ```ts
-const binding = await deyta.personas.create({
-  namespace_id: "ns_123",
+const persona = await deyta.personas.create({
   subject: "Alice",
+  external_reference_id: "user-abc",   // optional
+  description: "demo persona",          // optional
 });
-// binding: { agent_id, namespace_id, role: "primary", subject, ... }
+// persona: { id, orgId, namespaceId, externalReferenceId, subject, description, createdAt, updatedAt }
 ```
 
-The first call creates the primary binding (HTTP 201); subsequent calls return the existing binding (HTTP 200). `subject` is honored on the first call only.
+When the call succeeds, the calling API key is auto-granted access to the persona's backing namespace, so subsequent persona ops work without extra permission steps.
 
-### Build
+### List + iterate
 
 ```ts
-const { build_id } = await deyta.personas.build({ namespace_id: "ns_123" });
-// HTTP 202 — fire-and-forget. Poll `status()` to follow progress.
+const { data, pagination } = await deyta.personas.list({ page: 1, page_size: 20 });
+
+for await (const p of deyta.personas.iterate({ page_size: 50 })) {
+  console.log(p.id, p.subject);
+}
 ```
 
-Not idempotent — the gateway returns `409 CONFLICT` if a build is already in flight.
-
-### Status
+### Read (with Digor composite)
 
 ```ts
-const { status, last_built_at } = await deyta.personas.status({ namespace_id: "ns_123" });
+const result = await deyta.personas.get(persona.id);
+// or: const result = await deyta.personas.getByExternalRef("user-abc");
+
+if (result.digor.available) {
+  result.digor.data; // ComposedPersona — identity, traits, episodes, peers, facets, providers, ...
+} else {
+  // Local record exists but Digor has lost the binding — call build() and poll status().
+}
+```
+
+Returns `404 NOT_FOUND` when the persona doesn't exist locally; `503` when Digor is unreachable. When Digor merely hasn't built the persona yet, the response is shaped `{ ...persona, digor: { available: false } }` instead of an error.
+
+### Update / delete
+
+```ts
+await deyta.personas.update(persona.id, {
+  description: "updated copy",
+  external_reference_id: null,    // pass null to clear; omit to leave unchanged
+});
+
+await deyta.personas.delete(persona.id);
+// Cascades to the backing namespace and all of its connections, labels, and grants.
+```
+
+### Build / status
+
+```ts
+const { build_id } = await deyta.personas.build(persona.id);  // HTTP 202
+
+const { status, last_built_at } = await deyta.personas.status(persona.id);
 // status: "building" | "ready" | "not_built"
 ```
 
-### Read
-
-```ts
-const persona = await deyta.personas.read({ namespace_id: "ns_123" });
-// persona: { agent_id, identity, traits, episodes, peers, facets, providers, ... }
-```
-
-Returns `404 NOT_FOUND` when no binding exists or when the binding has not been built yet — call `status()` to disambiguate.
-
-### Scoped form
-
-```ts
-const ns = deyta.namespaces.scope("ns_123");
-
-await ns.personas.create({ subject: "Alice" });
-await ns.personas.build();
-await ns.personas.status();
-await ns.personas.read();
-```
+`build()` is not idempotent — the gateway returns `409 CONFLICT` if a build is already in flight. Poll `status()` to follow progress.
 
 ## Error handling
 

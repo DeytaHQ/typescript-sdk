@@ -11,7 +11,6 @@ export type { ErrorCode } from "./errors.js";
 export {
   NamespaceScope,
   NamespaceIntegrationsScope,
-  NamespacePersonasScope,
 } from "./resources/namespace-scope.js";
 export { SDK_VERSION } from "./version.js";
 export type {
@@ -22,8 +21,9 @@ export type {
   Pagination,
   RequestOptions,
 
-  // Namespace targeting
+  // Targeting
   NamespaceTarget,
+  Target,
 
   // Time bounds
   TimeBound,
@@ -57,12 +57,14 @@ export type {
   CompleteConnectionInput,
 
   // Personas
-  PersonaBinding,
-  PersonaRole,
-  PersonaStatus,
+  Persona,
+  PersonaWithDigor,
+  PersonaBuildStatus,
   PersonaStatusValue,
   BuildAccepted,
   ComposedPersona,
   CreatePersonaInput,
+  UpdatePersonaInput,
+  ListPersonasParams,
 } from "./types.js";
 export type { IterateParams } from "./pagination.js";

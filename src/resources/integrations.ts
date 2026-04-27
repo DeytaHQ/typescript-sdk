@@ -7,7 +7,22 @@ import type {
   RequestOptions,
   StartConnectionInput,
   StartConnectionResult,
+  Target,
 } from "../types.js";
+
+/**
+ * Flatten a `Target` into the `target_type` / `target_id` /
+ * `target_external_reference_id` query-string shape the gateway expects on
+ * `GET /integrations/connections`.
+ */
+function targetToQuery(target: Target): Record<string, string | undefined> {
+  return {
+    target_type: target.type,
+    target_id: "id" in target ? target.id : undefined,
+    target_external_reference_id:
+      "external_reference_id" in target ? target.external_reference_id : undefined,
+  };
+}
 
 export class Integrations {
   constructor(private readonly http: HttpClient) {}
@@ -17,11 +32,14 @@ export class Integrations {
   }
 
   async listConnections(
-    params: ListConnectionsParams,
+    target: ListConnectionsParams,
     opts?: RequestOptions,
   ): Promise<DataSourceConnection[]> {
-    const query = buildQuery(params);
-    return this.http.get<DataSourceConnection[]>(`/integrations/connections${query}`, opts);
+    const query = buildQuery(targetToQuery(target));
+    return this.http.get<DataSourceConnection[]>(
+      `/integrations/connections${query}`,
+      opts,
+    );
   }
 
   async getConnection(id: string, opts?: RequestOptions): Promise<DataSourceConnection> {
@@ -32,7 +50,11 @@ export class Integrations {
     input: StartConnectionInput,
     opts?: RequestOptions,
   ): Promise<StartConnectionResult> {
-    return this.http.post<StartConnectionResult>("/integrations/connections/start", input, opts);
+    return this.http.post<StartConnectionResult>(
+      "/integrations/connections/start",
+      input,
+      opts,
+    );
   }
 
   async completeConnection(

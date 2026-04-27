@@ -1,79 +1,98 @@
 ---
 title: Personas
-description: "Generate and read About-Me personas scoped to a namespace."
+description: "Top-level personas that own a backing namespace and a Digor-built profile."
 ---
 
-The persona endpoints expose a four-call lifecycle on top of the
-`/gateway/v1/personas` surface: **create** a binding, **build** the persona
-asynchronously, **poll** its status, and **read** the composite document.
-
-The SDK hides the underlying `agent_id` behind namespace-scoped resolution —
-every method accepts either `namespace_id` or `external_reference_id`.
+A persona is a top-level resource. Creating one auto-provisions a backing
+namespace where memory and integrations land; the persona's `id` is the
+underlying Digor `agent_id` and is the handle every other persona method uses.
 
 ## Create
 
 ```ts
-const binding = await deyta.personas.create({
-  namespace_id: "ns_123",
+const persona = await deyta.personas.create({
   subject: "Alice",
+  external_reference_id: "user-abc",   // optional
+  description: "demo persona",          // optional
 });
-// binding: { agent_id, namespace_id, role: "primary", subject, ... }
 ```
 
-The first call creates the primary binding (HTTP 201); subsequent calls return
-the existing binding (HTTP 200). `subject` is honored on the first call only —
-later calls with a different subject silently keep the original.
+The calling API key is auto-granted access to the new backing namespace, so
+subsequent persona operations work without extra permission steps.
 
-## Build
+<Note>
+  The returned record includes `namespaceId` — the backing namespace where you
+  can `remember` / `recall` / `ask` directly using the standard memory
+  endpoints.
+</Note>
+
+## List
 
 ```ts
-const { build_id } = await deyta.personas.build({ namespace_id: "ns_123" });
+// One page at a time
+const { data, pagination } = await deyta.personas.list({ page: 1, page_size: 20 });
+
+// Or walk every page automatically
+for await (const p of deyta.personas.iterate({ page_size: 50 })) {
+  console.log(p.id, p.subject);
+}
 ```
 
-Fire-and-forget. Returns HTTP 202 with a `build_id` for log correlation. Not
-idempotent — the gateway returns `409 CONFLICT` if a build is already in flight.
-Poll `status()` to follow progress.
+The list is scoped to personas the calling API key has access to.
 
-## Status
+## Read (with Digor composite)
+
+`get` returns the local record merged with Digor's composite document under a
+`digor` envelope:
 
 ```ts
-const { status, last_built_at } = await deyta.personas.status({
-  namespace_id: "ns_123",
+const result = await deyta.personas.get(persona.id);
+// or by external reference:
+const result = await deyta.personas.getByExternalRef("user-abc");
+
+if (result.digor.available) {
+  result.digor.data;   // identity, traits, episodes, peers, facets, providers, ...
+} else {
+  // Local record exists but the persona hasn't been built yet — call build().
+}
+```
+
+| Outcome | Response |
+|---|---|
+| Persona exists, build complete | `{ ...persona, digor: { available: true, data: ComposedPersona } }` |
+| Persona exists, no build yet | `{ ...persona, digor: { available: false } }` |
+| Persona not found | `404 NOT_FOUND` (thrown as `DeytaError`) |
+| Digor unreachable | `503` (thrown as `DeytaError`) |
+
+## Update
+
+```ts
+await deyta.personas.update(persona.id, {
+  description: "new copy",
+  external_reference_id: null,    // null clears, omit leaves unchanged
 });
+```
+
+`subject` is upstream-owned and cannot be changed via the gateway.
+
+## Delete
+
+```ts
+await deyta.personas.delete(persona.id);
+```
+
+Cascades to the backing namespace and all of its connections, labels, and
+grants.
+
+## Build / status
+
+```ts
+const { build_id } = await deyta.personas.build(persona.id);  // HTTP 202
+
+const { status, last_built_at } = await deyta.personas.status(persona.id);
 // status: "building" | "ready" | "not_built"
 ```
 
-## Read
-
-```ts
-const persona = await deyta.personas.read({ namespace_id: "ns_123" });
-// persona: { agent_id, identity, traits, episodes, peers, facets, providers, ... }
-```
-
-Returns `404 NOT_FOUND` when no binding exists **or** when the binding has not
-been built yet — call `status()` to disambiguate.
-
-## Scoped form
-
-<CodeGroup>
-```ts Scoped (recommended)
-const ns = deyta.namespaces.scope("ns_123");
-
-await ns.personas.create({ subject: "Alice" });
-await ns.personas.build();
-await ns.personas.status();
-await ns.personas.read();
-```
-
-```ts Top-level
-await deyta.personas.create({ namespace_id: "ns_123", subject: "Alice" });
-await deyta.personas.build({ namespace_id: "ns_123" });
-await deyta.personas.status({ namespace_id: "ns_123" });
-await deyta.personas.read({ namespace_id: "ns_123" });
-```
-</CodeGroup>
-
-<Note>
-  Provide exactly one of `namespace_id` or `external_reference_id` per call.
-  Passing both, or neither, is a client error.
-</Note>
+`build()` is fire-and-forget; not idempotent. The gateway returns
+`409 CONFLICT` if a build is already in flight — poll `status()` to follow
+progress.

@@ -71,37 +71,40 @@ describe("namespaces.scope(id)", () => {
     expect(mock.requests[0]?.url).toMatch(/\/namespaces\/ns_42$/);
   });
 
-  test("integrations.list passes namespace_id query param", async () => {
+  test("integrations.list flattens scope into target_type=namespace&target_id", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() => jsonOk([]));
     const ns = deyta.namespaces.scope("ns_42");
     await ns.integrations.list();
     const url = new URL(mock.requests[0]!.url);
-    expect(url.searchParams.get("namespace_id")).toBe("ns_42");
+    expect(url.searchParams.get("target_type")).toBe("namespace");
+    expect(url.searchParams.get("target_id")).toBe("ns_42");
   });
 
-  test("integrations.start injects namespace_id into body", async () => {
+  test("integrations.start nests target=namespace into body", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonOk({
         id: "conn_1",
-        org_id: "org",
-        namespace_id: "ns_42",
+        orgId: "org",
+        namespaceId: "ns_42",
+        personaId: null,
         provider: "google_drive",
-        connection_id: null,
+        connectionId: null,
         status: "pending",
-        session_id: null,
-        auth_link_url: null,
-        created_by: "u",
-        created_at: "x",
-        updated_at: "x",
+        sessionId: null,
+        authLinkUrl: null,
+        createdBy: "u",
+        createdAt: "x",
+        updatedAt: "x",
         session_token: "tok",
+        auth_link_url: "https://link",
       }),
     );
     const ns = deyta.namespaces.scope("ns_42");
     await ns.integrations.start({ provider: "google_drive" });
     const body = mock.requests[0]?.body as Record<string, unknown>;
-    expect(body.namespace_id).toBe("ns_42");
+    expect(body.target).toEqual({ type: "namespace", id: "ns_42" });
     expect(body.provider).toBe("google_drive");
   });
 });
