@@ -40,8 +40,12 @@
   "license": "MIT",
   "author": "Deyta <support@deyta.ai>",
   "homepage": "https://docs.deyta.ai/sdk/typescript",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DeytaHQ/typescript-sdk.git"
+  },
   "bugs": {
-    "email": "support@deyta.ai"
+    "url": "https://github.com/DeytaHQ/typescript-sdk/issues"
   },
   "keywords": [
     "deyta",
