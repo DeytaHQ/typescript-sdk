@@ -68,6 +68,7 @@ export type {
   PersonaBuildStatus,
   PersonaStatusValue,
   BuildAccepted,
+  BuildPersonaInput,
   ComposedPersona,
   CreatePersonaInput,
   UpdatePersonaInput,

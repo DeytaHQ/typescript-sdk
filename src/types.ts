@@ -308,6 +308,22 @@ export interface BuildAccepted {
   [key: string]: unknown;
 }
 
+/**
+ * Optional build-window overrides for `personas.build()`. All fields are
+ * optional — when omitted, the gateway applies its defaults (60 / 14 / 14 /
+ * 0.5).
+ */
+export interface BuildPersonaInput {
+  /** Context window in days. Default: 60. Minimum: 1. */
+  context_window_days?: number;
+  /** Focus past window in days. Default: 14. Minimum: 1. */
+  focus_past_days?: number;
+  /** Focus future window in days. Default: 14. Minimum: 0. */
+  focus_future_days?: number;
+  /** Focus ratio in `[0, 1]`. Default: 0.5. */
+  focus_ratio?: number;
+}
+
 export interface CreatePersonaInput {
   subject: string;
   external_reference_id?: string;

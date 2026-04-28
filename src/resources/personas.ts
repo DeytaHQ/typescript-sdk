@@ -2,6 +2,7 @@ import { buildQuery, seg, type HttpClient, type PaginatedResult } from "../clien
 import { paginate, type IterateParams } from "../pagination.js";
 import type {
   BuildAccepted,
+  BuildPersonaInput,
   CreatePersonaInput,
   GenerateSummaryInput,
   ListPersonasParams,
@@ -81,9 +82,19 @@ export class Personas {
 
   // ── Build lifecycle ───────────────────────────────────────────────
 
-  /** Trigger an async build of the persona. Returns 202 with a `build_id`. */
-  async build(id: string, opts?: RequestOptions): Promise<BuildAccepted> {
-    return this.http.post<BuildAccepted>(`/personas/${seg(id)}/build`, undefined, opts);
+  /**
+   * Trigger an async build of the persona. Returns 202 with a `build_id`.
+   * `input` overrides the default build window — all fields are optional;
+   * the gateway fills in defaults (60 / 14 / 14 / 0.5).
+   */
+  async build(
+    id: string,
+    input?: BuildPersonaInput,
+    opts?: RequestOptions,
+  ): Promise<BuildAccepted> {
+    // Always send a JSON object body — the gateway handler reads
+    // `body.context_window_days` etc. directly and 500s on a missing body.
+    return this.http.post<BuildAccepted>(`/personas/${seg(id)}/build`, input ?? {}, opts);
   }
 
   /** Read the current build state — `building`, `ready`, or `not_built`. */

@@ -158,7 +158,7 @@ describe("Personas", () => {
     expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1$/);
   });
 
-  test("build POSTs to /personas/:id/build and returns BuildAccepted (202)", async () => {
+  test("build POSTs to /personas/:id/build with empty-object body by default", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonOk({ build_id: "bld_1", status: "accepted" as const }, 202),
@@ -168,6 +168,27 @@ describe("Personas", () => {
     expect(result.status).toBe("accepted");
     expect(mock.requests[0]?.method).toBe("POST");
     expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1\/build$/);
+    // Always send an object body — gateway 500s on missing body.
+    expect(mock.requests[0]?.body).toEqual({});
+  });
+
+  test("build forwards build-window overrides", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({ build_id: "bld_2", status: "accepted" as const }, 202),
+    );
+    await deyta.personas.build("agt_1", {
+      context_window_days: 30,
+      focus_past_days: 7,
+      focus_future_days: 7,
+      focus_ratio: 0.75,
+    });
+    expect(mock.requests[0]?.body).toEqual({
+      context_window_days: 30,
+      focus_past_days: 7,
+      focus_future_days: 7,
+      focus_ratio: 0.75,
+    });
   });
 
   test("status GETs /personas/:id/status", async () => {

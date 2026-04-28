@@ -290,7 +290,16 @@ await deyta.personas.delete(persona.id);
 ### Build / status
 
 ```ts
+// Defaults: 60 / 14 / 14 / 0.5 (the gateway fills these in when omitted).
 const { build_id } = await deyta.personas.build(persona.id);  // HTTP 202
+
+// Override the build window if you need to:
+await deyta.personas.build(persona.id, {
+  context_window_days: 30,
+  focus_past_days: 7,
+  focus_future_days: 7,
+  focus_ratio: 0.75,
+});
 
 const { status, last_built_at } = await deyta.personas.status(persona.id);
 // status: "building" | "ready" | "not_built"
