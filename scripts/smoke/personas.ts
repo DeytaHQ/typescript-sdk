@@ -92,5 +92,18 @@ await runSmoke("personas", async () => {
     step("delete persona (cleanup)");
     await deyta.personas.delete(persona.id);
     console.log("  response: <204 No Content>");
+
+    step("verify delete (get expects 404)");
+    try {
+      const ghost = await deyta.personas.get(persona.id);
+      console.warn("  ⚠ unexpected: persona still readable after delete");
+      logResponse(ghost);
+    } catch (err) {
+      if (err instanceof DeytaError && err.code === "NOT_FOUND") {
+        console.log("  response: <DeytaError NOT_FOUND 404> (expected — delete confirmed)");
+      } else {
+        throw err;
+      }
+    }
   }
 });
