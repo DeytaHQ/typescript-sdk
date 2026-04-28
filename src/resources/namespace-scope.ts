@@ -1,4 +1,5 @@
-import type { HttpClient } from "../client.js";
+import type { HttpClient, PaginatedResult } from "../client.js";
+import type { IterateParams } from "../pagination.js";
 import type { Integrations } from "./integrations.js";
 import type { Memory } from "./memory.js";
 import type { Namespaces } from "./namespaces.js";
@@ -119,8 +120,18 @@ export class NamespaceIntegrationsScope {
     this.resolvedTarget = namespaceAsTarget(target);
   }
 
-  list(opts?: RequestOptions): Promise<DataSourceConnection[]> {
-    return this.integrations.listConnections(this.resolvedTarget, opts);
+  list(
+    params?: { page?: number; page_size?: number },
+    opts?: RequestOptions,
+  ): Promise<PaginatedResult<DataSourceConnection>> {
+    return this.integrations.listConnections({ ...this.resolvedTarget, ...params }, opts);
+  }
+
+  iterate(
+    params?: IterateParams,
+    opts?: RequestOptions,
+  ): AsyncGenerator<DataSourceConnection, void, void> {
+    return this.integrations.iterateConnections(this.resolvedTarget, params, opts);
   }
 
   start(input: { provider: string }, opts?: RequestOptions): Promise<StartConnectionResult> {

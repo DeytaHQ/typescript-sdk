@@ -402,7 +402,16 @@ export interface DataSourceConnection {
   updated_at: string;
 }
 
-export type ListConnectionsParams = Target;
+/**
+ * Parameters for `Integrations.listConnections`. Combines the typed `Target`
+ * (namespace or persona, by `id` or `external_reference_id`) with optional
+ * pagination controls. The endpoint now returns the same top-level
+ * `{ data, pagination }` envelope as `/namespaces` and `/personas`.
+ */
+export type ListConnectionsParams = Target & {
+  page?: number;
+  page_size?: number;
+};
 
 export interface StartConnectionInput {
   target: Target;

@@ -190,23 +190,36 @@ const providers = await deyta.integrations.listProviders();
 
 ### Connections
 
-Connections target either a namespace or a persona via the typed `target` discriminator. Provide exactly one of `id` / `external_reference_id`:
+Connections target either a namespace or a persona via the typed `target` discriminator. Provide exactly one of `id` / `external_reference_id`. The endpoint returns a paginated `{ data, pagination }` envelope, so iterate explicitly or via the helper:
 
 ```ts
-// Namespace-targeted (also what the scoped form uses under the hood)
-const connections = await deyta.integrations.listConnections({
+// One page at a time (namespace-targeted)
+const { data, pagination } = await deyta.integrations.listConnections({
   type: "namespace",
   id: "ns_123",
+  page: 1,
+  page_size: 50,
 });
 
 // Persona-targeted
-const connections = await deyta.integrations.listConnections({
+const persona = await deyta.integrations.listConnections({
   type: "persona",
   external_reference_id: "user-abc",
 });
 
+// Walk every page automatically
+for await (const conn of deyta.integrations.iterateConnections(
+  { type: "namespace", id: "ns_123" },
+  { page_size: 50 },
+)) {
+  console.log(conn.id, conn.provider);
+}
+
 // Or via the namespace scope — target is captured implicitly
-const connections = await ns.integrations.list();
+const page = await ns.integrations.list({ page_size: 50 });
+for await (const conn of ns.integrations.iterate()) {
+  console.log(conn.id);
+}
 
 const conn = await deyta.integrations.getConnection("conn_123");
 // conn.persona_id — set when the connection's namespace backs a persona; null otherwise

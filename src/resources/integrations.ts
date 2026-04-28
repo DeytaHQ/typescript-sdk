@@ -1,4 +1,5 @@
-import { buildQuery, seg, type HttpClient } from "../client.js";
+import { buildQuery, seg, type HttpClient, type PaginatedResult } from "../client.js";
+import { paginate, type IterateParams } from "../pagination.js";
 import type {
   CompleteConnectionInput,
   DataSourceConnection,
@@ -11,16 +12,20 @@ import type {
 } from "../types.js";
 
 /**
- * Flatten a `Target` into the `target_type` / `target_id` /
- * `target_external_reference_id` query-string shape the gateway expects on
- * `GET /integrations/connections`.
+ * Flatten a `ListConnectionsParams` into the query-string the gateway
+ * expects: `target_type`, `target_id` / `target_external_reference_id`,
+ * plus optional `page` / `page_size`.
  */
-function targetToQuery(target: Target): Record<string, string | undefined> {
+function paramsToQuery(
+  params: ListConnectionsParams,
+): Record<string, string | number | undefined> {
   return {
-    target_type: target.type,
-    target_id: "id" in target ? target.id : undefined,
+    target_type: params.type,
+    target_id: "id" in params ? params.id : undefined,
     target_external_reference_id:
-      "external_reference_id" in target ? target.external_reference_id : undefined,
+      "external_reference_id" in params ? params.external_reference_id : undefined,
+    page: params.page,
+    page_size: params.page_size,
   };
 }
 
@@ -31,14 +36,34 @@ export class Integrations {
     return this.http.get<IntegrationSetting[]>("/integrations/list", opts);
   }
 
+  /**
+   * List connections for a target (namespace or persona). Returns a
+   * `PaginatedResult<DataSourceConnection>` matching the gateway's standard
+   * top-level `{ data, pagination }` envelope.
+   */
   async listConnections(
-    target: ListConnectionsParams,
+    params: ListConnectionsParams,
     opts?: RequestOptions,
-  ): Promise<DataSourceConnection[]> {
-    const query = buildQuery(targetToQuery(target));
-    return this.http.get<DataSourceConnection[]>(
+  ): Promise<PaginatedResult<DataSourceConnection>> {
+    const query = buildQuery(paramsToQuery(params));
+    return this.http.getPaginated<DataSourceConnection>(
       `/integrations/connections${query}`,
       opts,
+    );
+  }
+
+  /**
+   * Async iterator that walks every page of connections for a target.
+   * Yields one `DataSourceConnection` per item.
+   */
+  iterateConnections(
+    target: Target,
+    params?: IterateParams,
+    opts?: RequestOptions,
+  ): AsyncGenerator<DataSourceConnection, void, void> {
+    const pageSize = params?.page_size;
+    return paginate<DataSourceConnection>((page) =>
+      this.listConnections({ ...target, page, page_size: pageSize }, opts),
     );
   }
 
