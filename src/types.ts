@@ -161,47 +161,53 @@ export interface ListNamespacesParams {
 /**
  * Top-level persona record. `id` is stable across SDK calls — pass it to
  * `build()`, `status()`, `update()`, and `delete()`. Each persona owns a
- * backing namespace (`namespaceId`) created automatically; that namespace
+ * backing namespace (`namespace_id`) created automatically; that namespace
  * is where memory and integrations land.
  */
 export interface Persona {
   id: string;
-  orgId: string;
-  namespaceId: string;
-  externalReferenceId: string | null;
+  org_id: string;
+  namespace_id: string;
+  external_reference_id: string | null;
   subject: string;
   description: string | null;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
   [key: string]: unknown;
 }
 
 /**
- * Composite persona document returned by the gateway. The shape is permissive
- * (identity, traits, episodes, peers, facets, providers, source_event_count,
- * …); the API may add fields, captured by the index signature.
+ * Composite persona document spread alongside `Persona` when `built === true`.
+ * Shape is permissive — the gateway may add fields, captured by the index
+ * signature.
  */
 export interface ComposedPersona {
-  agent_id: string;
+  built_at: string;
+  source_event_count: number;
+  providers: Array<Record<string, unknown>>;
+  identity: Record<string, unknown>;
+  traits: Record<string, unknown>;
+  episodes: Array<Record<string, unknown>>;
+  peers: Array<Record<string, unknown>>;
+  facets: Record<string, unknown>;
   [key: string]: unknown;
 }
 
 /**
- * A `Persona` enriched with its composite document. When the gateway has not
- * yet produced a composite for this persona, `composite.available` is
- * `false` instead of throwing — the local record is still intact and can be
- * rebuilt with `personas.build(id)`.
+ * Response shape returned by `GET /personas/:id` and
+ * `GET /personas/reference/:externalReferenceId`. Discriminated on `built`:
+ * when `false`, only the base record is returned — call `personas.build(id)`
+ * and poll `status()`. When `true`, the composite fields (identity, traits,
+ * episodes, peers, facets, providers, source_event_count, built_at) are
+ * spread alongside the base record.
  */
-export type PersonaWithComposite = Persona & {
-  composite:
-    | { available: true; data: ComposedPersona }
-    | { available: false };
-};
+export type PersonaResponse =
+  | (Persona & { built: false })
+  | (Persona & { built: true } & ComposedPersona);
 
 export type PersonaStatusValue = "building" | "ready" | "not_built";
 
 export interface PersonaBuildStatus {
-  agent_id: string;
   status: PersonaStatusValue;
   last_built_at: string | null;
   [key: string]: unknown;
@@ -209,7 +215,6 @@ export interface PersonaBuildStatus {
 
 export interface BuildAccepted {
   build_id: string;
-  agent_id: string;
   status: "accepted";
   [key: string]: unknown;
 }
@@ -245,23 +250,24 @@ export interface IntegrationSetting {
 export type DataSourceConnectionStatus = "pending" | "connected" | "error" | "revoked";
 
 /**
- * OAuth-based data-source connection. `personaId` is set when the connection's
- * namespace backs a persona (which is the common case for connections created
- * via `target: { type: "persona", … }`); `null` for namespace-only targets.
+ * OAuth-based data-source connection. `persona_id` is set when the
+ * connection's namespace backs a persona (which is the common case for
+ * connections created via `target: { type: "persona", … }`); `null` for
+ * namespace-only targets.
  */
 export interface DataSourceConnection {
   id: string;
-  orgId: string;
-  namespaceId: string;
-  personaId: string | null;
+  org_id: string;
+  namespace_id: string;
+  persona_id: string | null;
   provider: string;
-  connectionId: string | null;
+  connection_id: string | null;
   status: DataSourceConnectionStatus;
-  sessionId: string | null;
-  authLinkUrl: string | null;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
+  session_id: string | null;
+  auth_link_url: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export type ListConnectionsParams = Target;

@@ -12,29 +12,29 @@ function setup() {
   return { deyta, mock };
 }
 
-const persona = (overrides: Partial<{ id: string; subject: string; externalReferenceId: string | null }> = {}) => ({
+const persona = (overrides: Partial<{ id: string; subject: string; external_reference_id: string | null }> = {}) => ({
   id: overrides.id ?? "agt_1",
-  orgId: "org_1",
-  namespaceId: "ns_1",
-  externalReferenceId: overrides.externalReferenceId ?? null,
+  org_id: "org_1",
+  namespace_id: "ns_1",
+  external_reference_id: overrides.external_reference_id ?? null,
   subject: overrides.subject ?? "Alice",
   description: null,
-  createdAt: "2026-04-27T00:00:00Z",
-  updatedAt: "2026-04-27T00:00:00Z",
+  created_at: "2026-04-27T00:00:00Z",
+  updated_at: "2026-04-27T00:00:00Z",
 });
 
 describe("Personas", () => {
   test("create POSTs body and returns Persona (201)", async () => {
     const { deyta, mock } = setup();
-    mock.setHandler(() => jsonOk(persona({ externalReferenceId: "ref_1" }), 201));
+    mock.setHandler(() => jsonOk(persona({ external_reference_id: "ref_1" }), 201));
     const result = await deyta.personas.create({
       subject: "Alice",
       external_reference_id: "ref_1",
       description: "demo",
     });
     expect(result.id).toBe("agt_1");
-    expect(result.namespaceId).toBe("ns_1");
-    expect(result.externalReferenceId).toBe("ref_1");
+    expect(result.namespace_id).toBe("ns_1");
+    expect(result.external_reference_id).toBe("ref_1");
     expect(mock.requests[0]?.method).toBe("POST");
     expect(mock.requests[0]?.url).toMatch(/\/personas$/);
     expect(mock.requests[0]?.body).toEqual({
@@ -85,44 +85,47 @@ describe("Personas", () => {
     expect(ids).toEqual(["agt_1", "agt_2", "agt_3"]);
   });
 
-  test("get maps wire `digor` envelope to SDK `composite` (available=true)", async () => {
+  test("get returns persona with built=true and composite fields spread inline", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonOk({
         ...persona(),
-        digor: {
-          available: true,
-          data: { agent_id: "agt_1", identity: { name: "Alice" }, traits: [] },
-        },
+        built: true,
+        built_at: "2026-04-27T01:00:00Z",
+        source_event_count: 12,
+        providers: [],
+        identity: { name: "Alice" },
+        traits: {},
+        episodes: [],
+        peers: [],
+        facets: {},
       }),
     );
     const result = await deyta.personas.get("agt_1");
     expect(result.id).toBe("agt_1");
-    expect(result.composite.available).toBe(true);
-    if (result.composite.available) {
-      expect(result.composite.data.agent_id).toBe("agt_1");
+    expect(result.built).toBe(true);
+    if (result.built) {
+      expect(result.built_at).toBe("2026-04-27T01:00:00Z");
+      expect(result.source_event_count).toBe(12);
+      expect(result.identity).toEqual({ name: "Alice" });
     }
-    // The wire `digor` field is not surfaced on the SDK return value.
-    expect((result as unknown as { digor?: unknown }).digor).toBeUndefined();
     expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1$/);
   });
 
-  test("get surfaces composite.available=false envelope", async () => {
+  test("get returns persona with built=false when composite not yet produced", async () => {
     const { deyta, mock } = setup();
-    mock.setHandler(() =>
-      jsonOk({ ...persona(), digor: { available: false } }),
-    );
+    mock.setHandler(() => jsonOk({ ...persona(), built: false }));
     const result = await deyta.personas.get("agt_1");
-    expect(result.composite.available).toBe(false);
+    expect(result.built).toBe(false);
   });
 
   test("getByExternalRef hits /personas/reference/:externalRef", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
-      jsonOk({ ...persona({ externalReferenceId: "ref-A/B" }), digor: { available: false } }),
+      jsonOk({ ...persona({ external_reference_id: "ref-A/B" }), built: false }),
     );
     const result = await deyta.personas.getByExternalRef("ref-A/B");
-    expect(result.externalReferenceId).toBe("ref-A/B");
+    expect(result.external_reference_id).toBe("ref-A/B");
     // Special chars must be percent-encoded.
     expect(mock.requests[0]?.url).toMatch(/\/personas\/reference\/ref-A%2FB$/);
   });
@@ -130,14 +133,14 @@ describe("Personas", () => {
   test("update PATCHes /personas/:id with partial body", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
-      jsonOk({ ...persona(), description: "updated", externalReferenceId: null }),
+      jsonOk({ ...persona(), description: "updated", external_reference_id: null }),
     );
     const result = await deyta.personas.update("agt_1", {
       description: "updated",
       external_reference_id: null,
     });
     expect(result.description).toBe("updated");
-    expect(result.externalReferenceId).toBeNull();
+    expect(result.external_reference_id).toBeNull();
     expect(mock.requests[0]?.method).toBe("PATCH");
     expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1$/);
     expect(mock.requests[0]?.body).toEqual({
@@ -158,7 +161,7 @@ describe("Personas", () => {
   test("build POSTs to /personas/:id/build and returns BuildAccepted (202)", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
-      jsonOk({ build_id: "bld_1", agent_id: "agt_1", status: "accepted" as const }, 202),
+      jsonOk({ build_id: "bld_1", status: "accepted" as const }, 202),
     );
     const result = await deyta.personas.build("agt_1");
     expect(result.build_id).toBe("bld_1");
@@ -171,7 +174,6 @@ describe("Personas", () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonOk({
-        agent_id: "agt_1",
         status: "ready" as const,
         last_built_at: "2026-04-27T01:00:00Z",
       }),

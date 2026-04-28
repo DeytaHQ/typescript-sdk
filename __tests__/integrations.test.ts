@@ -14,17 +14,17 @@ function setup() {
 
 const conn = (id: string) => ({
   id,
-  orgId: "org_1",
-  namespaceId: "ns_1",
-  personaId: null,
+  org_id: "org_1",
+  namespace_id: "ns_1",
+  persona_id: null,
   provider: "google_drive",
-  connectionId: null,
+  connection_id: null,
   status: "pending" as const,
-  sessionId: null,
-  authLinkUrl: null,
-  createdBy: "u_1",
-  createdAt: "2026-04-26T00:00:00Z",
-  updatedAt: "2026-04-26T00:00:00Z",
+  session_id: null,
+  auth_link_url: null,
+  created_by: "u_1",
+  created_at: "2026-04-26T00:00:00Z",
+  updated_at: "2026-04-26T00:00:00Z",
 });
 
 describe("Integrations", () => {
@@ -50,7 +50,7 @@ describe("Integrations", () => {
 
   test("listConnections flattens persona+external_reference_id target", async () => {
     const { deyta, mock } = setup();
-    mock.setHandler(() => jsonOk([{ ...conn("conn_1"), personaId: "agt_1" }]));
+    mock.setHandler(() => jsonOk([{ ...conn("conn_1"), persona_id: "agt_1" }]));
     await deyta.integrations.listConnections({
       type: "persona",
       external_reference_id: "ref_1",
@@ -63,10 +63,10 @@ describe("Integrations", () => {
 
   test("getConnection hits /integrations/connections/:id", async () => {
     const { deyta, mock } = setup();
-    mock.setHandler(() => jsonOk({ ...conn("conn_1"), personaId: "agt_1" }));
+    mock.setHandler(() => jsonOk({ ...conn("conn_1"), persona_id: "agt_1" }));
     const c = await deyta.integrations.getConnection("conn_1");
     expect(c.id).toBe("conn_1");
-    expect(c.personaId).toBe("agt_1");
+    expect(c.persona_id).toBe("agt_1");
     expect(mock.requests[0]?.url).toMatch(/\/integrations\/connections\/conn_1$/);
   });
 
