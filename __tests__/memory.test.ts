@@ -130,22 +130,49 @@ describe("Memory.recall", () => {
 });
 
 describe("Memory.ask", () => {
-  test("translates from/until and returns the ask event stream", async () => {
+  test("translates from/until and returns the normalized AskResult", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
-      jsonOk([
-        { type: "RUN_STARTED", threadId: "t1", runId: "r1" },
-        {
-          type: "TEXT_MESSAGE_START",
-          timestamp: 1,
-          messageId: "m1",
-          role: "assistant",
+      jsonOk({
+        answer_id: "run_1",
+        answer: "yes",
+        sources: [
+          {
+            id: "doc_1",
+            title: "Release notes",
+            source: "nango://granola/transcripts",
+            source_type: "api",
+            created_at: "2026-04-23T14:00:00Z",
+            source_timestamp: null,
+          },
+        ],
+        usage: {
+          input_tokens: 100,
+          output_tokens: 5,
+          cache_read_tokens: 0,
+          cache_write_tokens: 0,
+          total_tokens: 105,
+          requests: 1,
+          by_source: [
+            {
+              source: "ask_agent",
+              model: "openai:gpt-4o",
+              input_tokens: 100,
+              output_tokens: 5,
+              cache_read_tokens: 0,
+              cache_write_tokens: 0,
+              requests: 1,
+              total_tokens: 105,
+              timestamp: "2026-04-23T14:00:01Z",
+            },
+          ],
         },
-        { type: "TEXT_MESSAGE_CONTENT", timestamp: 2, messageId: "m1", delta: "ye" },
-        { type: "TEXT_MESSAGE_CONTENT", timestamp: 3, messageId: "m1", delta: "s" },
-        { type: "TEXT_MESSAGE_END", timestamp: 4, messageId: "m1" },
-        { type: "RUN_FINISHED", threadId: "t1", runId: "r1" },
-      ]),
+        timing: {
+          started_at: "2026-04-23T14:00:00Z",
+          finished_at: "2026-04-23T14:00:02Z",
+          duration_ms: 2000,
+        },
+      }),
     );
     const result = await deyta.memory.ask({
       namespace_id: "ns_1",
@@ -153,12 +180,12 @@ describe("Memory.ask", () => {
       from: new Date("2026-04-01T00:00:00Z"),
       config: { max_recall_limit: 10 },
     });
-    const answer = result
-      .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
-      .map((e) => e.delta)
-      .join("");
-    expect(answer).toBe("yes");
-    expect(result[0]?.type).toBe("RUN_STARTED");
+    expect(result.answer).toBe("yes");
+    expect(result.answer_id).toBe("run_1");
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0]?.title).toBe("Release notes");
+    expect(result.usage.total_tokens).toBe(105);
+    expect(result.timing.duration_ms).toBe(2000);
     const body = mock.requests[0]?.body as Record<string, unknown>;
     expect(body.start_time).toBe("2026-04-01T00:00:00.000Z");
     expect(body.config).toEqual({ max_recall_limit: 10 });

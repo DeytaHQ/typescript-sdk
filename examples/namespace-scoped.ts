@@ -33,15 +33,12 @@ const recent = await ns.recall({
 });
 console.log("Recall chunks:", recent.chunks.length);
 
-const events = await ns.ask({
+const result = await ns.ask({
   query: "When is the project due?",
   config: { max_recall_limit: 5 },
 });
-const answer = events
-  .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
-  .map((e) => e.delta)
-  .join("");
-console.log("Ask:", answer);
+console.log("Ask:", result.answer);
+console.log("Sources:", result.sources.length, "— Tokens:", result.usage.total_tokens);
 
 const meta = await ns.metadata();
 console.log("Namespace:", meta.id, meta.name);

@@ -125,7 +125,7 @@ const result = await deyta.memory.forget({
 ### `ask`
 
 ```ts
-const events = await deyta.memory.ask({
+const result = await deyta.memory.ask({
   namespace_id: "ns_123",
   query: "What are the key project milestones?",
   config: {
@@ -137,18 +137,16 @@ const events = await deyta.memory.ask({
   from: new Date("2026-04-01T00:00:00Z"),
   until: new Date("2026-04-30T23:59:59Z"),
 });
-// events: AskEvent[] — an ordered AG-UI-style event stream.
-// Reconstruct the assistant answer by concatenating TEXT_MESSAGE_CONTENT deltas:
-const answer = events
-  .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
-  .map((e) => e.delta)
-  .join("");
-
-// Other event types include RUN_STARTED / RUN_FINISHED, TOOL_CALL_* (streamed
-// tool invocations and results), and CUSTOM events whose `name` discriminates
-// the payload — `tool_result` (chunks/entities), `sources` (citations),
-// `cost_event` / `cost_summary` (token + request usage).
+// result: {
+//   answer_id: string;          // upstream run ID — empty string if absent
+//   answer: string;             // synthesized answer text
+//   sources: AskSource[];       // de-duplicated cited memories
+//   usage: AskUsage;            // aggregated token/request counts + per-source breakdown
+//   timing: AskTiming;          // started_at / finished_at / duration_ms
+// }
 ```
+
+The gateway normalizes the upstream agent's verbose streaming event log into this stable non-streaming shape — callers don't have to walk events.
 
 ## Namespaces
 

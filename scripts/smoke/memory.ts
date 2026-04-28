@@ -4,19 +4,7 @@
  *
  * Run: DEYTA_API_KEY=… bun run scripts/smoke/memory.ts
  */
-import { makeClient, runSmoke, step, uniq } from "./_shared.js";
-
-/** Stringify a value for diagnostic logs, capping length so output stays usable. */
-function preview(value: unknown, max = 600): string {
-  let json: string;
-  try {
-    json = JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-  if (json === undefined) return String(value);
-  return json.length > max ? `${json.slice(0, max)}…` : json;
-}
+import { makeClient, preview, runSmoke, step, uniq } from "./_shared.js";
 
 await runSmoke("memory", async () => {
   const deyta = makeClient();
@@ -59,15 +47,17 @@ await runSmoke("memory", async () => {
       namespace_id: ns.id,
       query: "When is the team standup?",
     });
-    if (Array.isArray(answered)) {
-      const answer = answered
-        .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
-        .map((e) => e.delta)
-        .join("");
-      console.log("  events:", answered.length);
-      console.log("  answer:", answer.slice(0, 120));
+    if (typeof answered?.answer === "string") {
+      console.log("  answer_id:", answered.answer_id || "(none)");
+      console.log("  answer:", answered.answer.slice(0, 120));
+      console.log("  sources:", answered.sources.length);
+      console.log(
+        "  usage:",
+        `${answered.usage.total_tokens} tokens / ${answered.usage.requests} requests`,
+      );
+      console.log("  duration_ms:", answered.timing.duration_ms);
     } else {
-      console.warn("  ⚠ ask response was not an event array — gateway shape may have drifted from AskResult");
+      console.warn("  ⚠ ask response was not the normalized AskResult shape");
       console.warn("  raw ask response:", preview(answered));
     }
 
