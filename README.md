@@ -201,7 +201,7 @@ const connections = await deyta.integrations.listConnections({
 const connections = await ns.integrations.list();
 
 const conn = await deyta.integrations.getConnection("conn_123");
-// conn.personaId — set when the connection's namespace backs a persona; null otherwise
+// conn.persona_id — set when the connection's namespace backs a persona; null otherwise
 ```
 
 ### OAuth flow
@@ -237,7 +237,7 @@ const persona = await deyta.personas.create({
   external_reference_id: "user-abc",   // optional
   description: "demo persona",          // optional
 });
-// persona: { id, orgId, namespaceId, externalReferenceId, subject, description, createdAt, updatedAt }
+// persona: { id, org_id, namespace_id, external_reference_id, subject, description, created_at, updated_at }
 ```
 
 When the call succeeds, the calling API key is auto-granted access to the persona's backing namespace, so subsequent persona ops work without extra permission steps.
@@ -258,14 +258,14 @@ for await (const p of deyta.personas.iterate({ page_size: 50 })) {
 const result = await deyta.personas.get(persona.id);
 // or: const result = await deyta.personas.getByExternalRef("user-abc");
 
-if (result.composite.available) {
-  result.composite.data; // ComposedPersona — identity, traits, episodes, peers, facets, providers, ...
+if (result.built) {
+  result.identity;            // identity, traits, episodes, peers, facets, providers, source_event_count, built_at
 } else {
   // Local record exists but the composite has not been produced yet — call build() and poll status().
 }
 ```
 
-Returns `404 NOT_FOUND` when the persona doesn't exist locally; `503` when the gateway can't reach the composite service. When the composite simply hasn't been produced yet, the response is shaped `{ ...persona, composite: { available: false } }` instead of an error.
+Returns `404 NOT_FOUND` when the persona doesn't exist locally; `503` when the gateway can't reach the composite service. When the composite simply hasn't been produced yet, the response is shaped `{ ...persona, built: false }` instead of an error.
 
 ### Update / delete
 

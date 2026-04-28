@@ -20,12 +20,12 @@ await runSmoke("personas", async () => {
     description: "Created by scripts/smoke/personas.ts",
     external_reference_id: externalRef,
   });
-  console.log("  id:", persona.id, "namespaceId:", persona.namespaceId);
+  console.log("  id:", persona.id, "namespace_id:", persona.namespace_id);
 
   try {
     step("get by id");
     const fetched = await deyta.personas.get(persona.id);
-    console.log("  composite.available:", fetched.composite.available);
+    console.log("  built:", fetched.built);
 
     step("get by external_reference_id");
     const byRef = await deyta.personas.getByExternalRef(externalRef);

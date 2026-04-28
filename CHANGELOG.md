@@ -4,6 +4,14 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1]
+
+### Changed
+- Track gateway rename: `Persona` and `DataSourceConnection` field names switched from camelCase back to snake_case (`org_id`, `namespace_id`, `external_reference_id`, `created_at`, `updated_at`, plus `persona_id`, `connection_id`, `session_id`, `auth_link_url`, `created_by` on connections).
+- `personas.get` / `getByExternalRef` now return a discriminated union on `built`: `{ ...persona, built: false }` or `{ ...persona, built: true, built_at, source_event_count, providers, identity, traits, episodes, peers, facets }`. The `composite.available` envelope is gone — branch on `result.built` and read composite fields directly.
+- `PersonaBuildStatus` and `BuildAccepted` no longer carry `agent_id`. `ComposedPersona` now models the spread composite fields directly.
+- Renamed exported type `PersonaWithComposite` → `PersonaResponse` to match the OpenAPI schema name and reflect that composite fields are no longer always present.
+
 ## [0.3.0]
 
 ### Added

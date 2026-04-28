@@ -86,19 +86,18 @@ describe("namespaces.scope(id)", () => {
     mock.setHandler(() =>
       jsonOk({
         id: "conn_1",
-        orgId: "org",
-        namespaceId: "ns_42",
-        personaId: null,
+        org_id: "org",
+        namespace_id: "ns_42",
+        persona_id: null,
         provider: "google_drive",
-        connectionId: null,
+        connection_id: null,
         status: "pending",
-        sessionId: null,
-        authLinkUrl: null,
-        createdBy: "u",
-        createdAt: "x",
-        updatedAt: "x",
-        session_token: "tok",
+        session_id: null,
         auth_link_url: "https://link",
+        created_by: "u",
+        created_at: "x",
+        updated_at: "x",
+        session_token: "tok",
       }),
     );
     const ns = deyta.namespaces.scope("ns_42");

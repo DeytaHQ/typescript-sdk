@@ -2,31 +2,14 @@ import { buildQuery, seg, type HttpClient, type PaginatedResult } from "../clien
 import { paginate, type IterateParams } from "../pagination.js";
 import type {
   BuildAccepted,
-  ComposedPersona,
   CreatePersonaInput,
   ListPersonasParams,
   Persona,
   PersonaBuildStatus,
-  PersonaWithComposite,
+  PersonaResponse,
   RequestOptions,
   UpdatePersonaInput,
 } from "../types.js";
-
-/**
- * Wire shape returned by `GET /personas/:id`. The gateway field name is
- * mapped to `composite` at the SDK surface so callers don't have to care
- * about upstream naming.
- */
-type PersonaGetResponse = Persona & {
-  digor:
-    | { available: true; data: ComposedPersona }
-    | { available: false };
-};
-
-function mapToComposite(wire: PersonaGetResponse): PersonaWithComposite {
-  const { digor, ...rest } = wire;
-  return { ...rest, composite: digor };
-}
 
 /**
  * Top-level persona resource. A persona owns a backing namespace created at
@@ -62,24 +45,24 @@ export class Personas {
   }
 
   /**
-   * Read a persona merged with its composite document. When the composite
-   * has not yet been produced, `composite.available` is `false` and the
-   * local record is returned without throwing.
+   * Read a persona. When the composite has been produced, `built` is `true`
+   * and the composite fields (identity, traits, episodes, peers, facets,
+   * providers, source_event_count, built_at) are spread alongside the base
+   * record. Otherwise `built` is `false` and only the base record is
+   * returned without throwing.
    */
-  async get(id: string, opts?: RequestOptions): Promise<PersonaWithComposite> {
-    const wire = await this.http.get<PersonaGetResponse>(`/personas/${seg(id)}`, opts);
-    return mapToComposite(wire);
+  async get(id: string, opts?: RequestOptions): Promise<PersonaResponse> {
+    return this.http.get<PersonaResponse>(`/personas/${seg(id)}`, opts);
   }
 
   async getByExternalRef(
     externalRef: string,
     opts?: RequestOptions,
-  ): Promise<PersonaWithComposite> {
-    const wire = await this.http.get<PersonaGetResponse>(
+  ): Promise<PersonaResponse> {
+    return this.http.get<PersonaResponse>(
       `/personas/reference/${seg(externalRef)}`,
       opts,
     );
-    return mapToComposite(wire);
   }
 
   async update(
