@@ -45,13 +45,12 @@ await runSmoke("memory", async () => {
       limit: 3,
       mode: "hybrid",
     });
-    if (Array.isArray(recalled?.results)) {
-      console.log("  matches:", recalled.results.length);
-      if (recalled.results[0]) {
-        console.log("  top score:", recalled.results[0].score);
-      }
+    if (Array.isArray(recalled?.chunks)) {
+      console.log("  chunks:", recalled.chunks.length);
+      console.log("  entities:", recalled.entities.length);
+      console.log("  context preview:", recalled.context_text.slice(0, 120));
     } else {
-      console.warn("  ⚠ no `results` array on recall response — gateway shape may have drifted from RecallResult");
+      console.warn("  ⚠ no `chunks` array on recall response — gateway shape may have drifted from RecallResult");
       console.warn("  raw recall response:", preview(recalled));
     }
 
@@ -60,10 +59,15 @@ await runSmoke("memory", async () => {
       namespace_id: ns.id,
       query: "When is the team standup?",
     });
-    if (typeof answered?.answer === "string") {
-      console.log("  answer:", answered.answer.slice(0, 120));
+    if (Array.isArray(answered)) {
+      const answer = answered
+        .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
+        .map((e) => e.delta)
+        .join("");
+      console.log("  events:", answered.length);
+      console.log("  answer:", answer.slice(0, 120));
     } else {
-      console.warn("  ⚠ no `answer` string on ask response — gateway shape may have drifted from AskResult");
+      console.warn("  ⚠ ask response was not an event array — gateway shape may have drifted from AskResult");
       console.warn("  raw ask response:", preview(answered));
     }
 

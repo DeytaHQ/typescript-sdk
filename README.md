@@ -107,7 +107,7 @@ const result = await deyta.memory.recall({
   from: new Date("2026-04-01T00:00:00Z"),      // Optional inclusive lower bound on event time
   until: "2026-04-30T23:59:59Z",               // Optional inclusive upper bound (Date | ISO string)
 });
-// result: { results: RecallMatch[] }
+// result: { query, namespace_id, chunks, entities, context_text, llm_usage }
 ```
 
 `from` and `until` accept either a `Date` or an ISO-8601 string. The SDK serializes them to the wire format expected by the API.
@@ -125,7 +125,7 @@ const result = await deyta.memory.forget({
 ### `ask`
 
 ```ts
-const answer = await deyta.memory.ask({
+const events = await deyta.memory.ask({
   namespace_id: "ns_123",
   query: "What are the key project milestones?",
   config: {
@@ -137,7 +137,17 @@ const answer = await deyta.memory.ask({
   from: new Date("2026-04-01T00:00:00Z"),
   until: new Date("2026-04-30T23:59:59Z"),
 });
-// answer: { answer, sources?, ... }
+// events: AskEvent[] — an ordered AG-UI-style event stream.
+// Reconstruct the assistant answer by concatenating TEXT_MESSAGE_CONTENT deltas:
+const answer = events
+  .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
+  .map((e) => e.delta)
+  .join("");
+
+// Other event types include RUN_STARTED / RUN_FINISHED, TOOL_CALL_* (streamed
+// tool invocations and results), and CUSTOM events whose `name` discriminates
+// the payload — `tool_result` (chunks/entities), `sources` (citations),
+// `cost_event` / `cost_summary` (token + request usage).
 ```
 
 ## Namespaces

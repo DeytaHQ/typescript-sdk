@@ -87,20 +87,46 @@ export type RecallInput = NamespaceTarget &
     mode?: RecallMode;
   };
 
-/**
- * A single match from a recall query. The shape is best-effort; upstream may
- * include additional fields, captured by the index signature.
- */
-export interface RecallMatch {
+/** Source document referenced by a recall chunk or entity. */
+export interface RecallSourceDocument {
+  id: string;
+  source_type: string;
+  created_at: string;
+  title: string;
+  source: string;
+  source_timestamp: string | null;
+  [key: string]: unknown;
+}
+
+/** Chunk-shaped match returned in the `chunks` array of a recall response. */
+export interface RecallChunk {
+  id: string;
   document_id: string;
   content: string;
   score: number;
-  metadata?: Record<string, unknown>;
+  source: RecallSourceDocument;
+  metadata: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+/** Entity-shaped match returned in the `entities` array of a recall response. */
+export interface RecallEntity {
+  id: string;
+  name: string;
+  entity_type: string;
+  score: number;
+  description: string;
+  source_documents: RecallSourceDocument[];
   [key: string]: unknown;
 }
 
 export interface RecallResult {
-  results: RecallMatch[];
+  query: string;
+  namespace_id: string;
+  chunks: RecallChunk[];
+  entities: RecallEntity[];
+  context_text: string;
+  llm_usage: Array<Record<string, unknown>>;
   [key: string]: unknown;
 }
 
@@ -126,11 +152,178 @@ export type AskInput = NamespaceTarget &
     config?: AskConfig;
   };
 
-export interface AskResult {
-  answer: string;
-  sources?: RecallMatch[];
+// ── Ask events ──────────────────────────────────────────────────────
+//
+// The `ask` endpoint returns its response body as an array of typed events
+// (an AG-UI-style event stream delivered as JSON). Consumers walk the array
+// in order and reconstruct the answer themselves — typically by concatenating
+// the `delta` fields of `TEXT_MESSAGE_CONTENT` events. Tool calls, tool
+// results, source citations, and cost telemetry are reported as additional
+// events. Every event interface carries an index signature so forward-added
+// fields land without forcing a type bump.
+
+export interface AskRunStartedEvent {
+  type: "RUN_STARTED";
+  threadId: string;
+  runId: string;
   [key: string]: unknown;
 }
+
+export interface AskRunFinishedEvent {
+  type: "RUN_FINISHED";
+  threadId: string;
+  runId: string;
+  [key: string]: unknown;
+}
+
+export interface AskToolCallStartEvent {
+  type: "TOOL_CALL_START";
+  timestamp: number;
+  toolCallId: string;
+  toolCallName: string;
+  parentMessageId: string;
+  [key: string]: unknown;
+}
+
+export interface AskToolCallArgsEvent {
+  type: "TOOL_CALL_ARGS";
+  timestamp: number;
+  toolCallId: string;
+  /** Streamed JSON fragment — concat all deltas for a `toolCallId` to recover the args object. */
+  delta: string;
+  [key: string]: unknown;
+}
+
+export interface AskToolCallEndEvent {
+  type: "TOOL_CALL_END";
+  timestamp: number;
+  toolCallId: string;
+  [key: string]: unknown;
+}
+
+export interface AskToolCallResultEvent {
+  type: "TOOL_CALL_RESULT";
+  timestamp: number;
+  messageId: string;
+  toolCallId: string;
+  /** Stringified retrieval payload, prepared for downstream LLM input. */
+  content: string;
+  role: string;
+  [key: string]: unknown;
+}
+
+export interface AskTextMessageStartEvent {
+  type: "TEXT_MESSAGE_START";
+  timestamp: number;
+  messageId: string;
+  role: string;
+  [key: string]: unknown;
+}
+
+export interface AskTextMessageContentEvent {
+  type: "TEXT_MESSAGE_CONTENT";
+  timestamp: number;
+  messageId: string;
+  /** A token-or-word-sized fragment of the assistant's reply. */
+  delta: string;
+  [key: string]: unknown;
+}
+
+export interface AskTextMessageEndEvent {
+  type: "TEXT_MESSAGE_END";
+  timestamp: number;
+  messageId: string;
+  [key: string]: unknown;
+}
+
+/** Entity returned alongside an ask `tool_result`. Note `confidence`/`attributes` instead of `score`. */
+export interface AskEntity {
+  id: string;
+  name: string;
+  entity_type: string;
+  description: string;
+  attributes: Record<string, unknown>;
+  confidence: number;
+  source_documents: RecallSourceDocument[];
+  [key: string]: unknown;
+}
+
+export interface AskCostEvent {
+  source: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  requests: number;
+  total_tokens: number;
+  /** ISO-8601 timestamp. */
+  timestamp: string;
+  [key: string]: unknown;
+}
+
+interface AskCustomEventBase {
+  type: "CUSTOM";
+  timestamp?: number;
+  [key: string]: unknown;
+}
+
+export interface AskToolResultCustomEvent extends AskCustomEventBase {
+  name: "tool_result";
+  value: {
+    chunks: RecallChunk[];
+    entities: AskEntity[];
+    relationships?: Array<Record<string, unknown>>;
+    [key: string]: unknown;
+  };
+}
+
+export interface AskCostEventCustomEvent extends AskCustomEventBase {
+  name: "cost_event";
+  value: AskCostEvent;
+}
+
+export interface AskCostSummaryCustomEvent extends AskCustomEventBase {
+  name: "cost_summary";
+  value: { cost_events: AskCostEvent[]; [key: string]: unknown };
+}
+
+export interface AskSourcesCustomEvent extends AskCustomEventBase {
+  name: "sources";
+  value: { sources: RecallSourceDocument[]; [key: string]: unknown };
+}
+
+/** Catch-all for `CUSTOM` events whose `name` we don't yet model. */
+export interface AskUnknownCustomEvent extends AskCustomEventBase {
+  name: string;
+  value: unknown;
+}
+
+export type AskCustomEvent =
+  | AskToolResultCustomEvent
+  | AskCostEventCustomEvent
+  | AskCostSummaryCustomEvent
+  | AskSourcesCustomEvent
+  | AskUnknownCustomEvent;
+
+export type AskEvent =
+  | AskRunStartedEvent
+  | AskRunFinishedEvent
+  | AskToolCallStartEvent
+  | AskToolCallArgsEvent
+  | AskToolCallEndEvent
+  | AskToolCallResultEvent
+  | AskTextMessageStartEvent
+  | AskTextMessageContentEvent
+  | AskTextMessageEndEvent
+  | AskCustomEvent;
+
+/**
+ * The `ask` endpoint returns an ordered array of typed events. To recover the
+ * final assistant answer, concatenate the `delta` fields of every
+ * `TEXT_MESSAGE_CONTENT` event.
+ */
+export type AskResult = AskEvent[];
 
 // ── Namespaces ──────────────────────────────────────────────────────
 

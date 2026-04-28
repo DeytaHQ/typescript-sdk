@@ -31,13 +31,17 @@ const recent = await ns.recall({
   query: "what does the user prefer?",
   from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // last 7 days
 });
-console.log("Recall results:", recent.results.length);
+console.log("Recall chunks:", recent.chunks.length);
 
-const answer = await ns.ask({
+const events = await ns.ask({
   query: "When is the project due?",
   config: { max_recall_limit: 5 },
 });
-console.log("Ask:", answer.answer);
+const answer = events
+  .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
+  .map((e) => e.delta)
+  .join("");
+console.log("Ask:", answer);
 
 const meta = await ns.metadata();
 console.log("Namespace:", meta.id, meta.name);
