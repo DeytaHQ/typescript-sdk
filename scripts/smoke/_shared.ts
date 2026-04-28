@@ -47,6 +47,18 @@ export function step(label: string): void {
   console.log(`\n▸ ${label}`);
 }
 
+/** Pretty-print a value for diagnostic logs, capping length so output stays usable. */
+export function preview(value: unknown, max = 800): string {
+  let json: string;
+  try {
+    json = JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+  if (json === undefined) return String(value);
+  return json.length > max ? `${json.slice(0, max)}…` : json;
+}
+
 export async function runSmoke(name: string, fn: () => Promise<void>): Promise<void> {
   const start = Date.now();
   console.log(`\n=== smoke: ${name} ===`);
