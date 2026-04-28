@@ -4,6 +4,17 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1]
+
+### Changed
+- **Breaking** `Integrations.listConnections` now returns `PaginatedResult<DataSourceConnection>` (`{ data, pagination }`) instead of a plain array, matching the gateway's standardized top-level pagination envelope (used by `/namespaces` and `/personas`). Previous SDK versions silently miscast the wrapper as an array, so `result.length` was `undefined` and `result.map(...)` threw at runtime — that behavior is now correctly typed and accessible via `result.data` / `result.pagination`.
+- `ListConnectionsParams` now extends `Target` with optional `page` / `page_size` controls.
+- The namespace-scope wrapper `ns.integrations.list()` now accepts `{ page?, page_size? }` and returns the same paginated envelope.
+
+### Added
+- `Integrations.iterateConnections(target, { page_size? })` — async iterator that walks every page of connections for a target, mirroring `namespaces.iterate()` and `personas.iterate()`.
+- `ns.integrations.iterate({ page_size? })` — same on the namespace scope.
+
 ## [0.4.0]
 
 ### Added

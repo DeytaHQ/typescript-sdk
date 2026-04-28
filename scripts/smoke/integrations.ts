@@ -28,11 +28,11 @@ await runSmoke("integrations", async () => {
 
   try {
     step("listConnections (empty for fresh namespace)");
-    const conns = await deyta.integrations.listConnections({
+    const result = await deyta.integrations.listConnections({
       type: "namespace",
       id: ns.id,
     });
-    console.log("  count:", conns.length);
+    console.log("  count:", result.data.length, "total:", result.pagination.total);
   } finally {
     step("delete scratch namespace (cleanup)");
     await deyta.namespaces.delete(ns.id);
