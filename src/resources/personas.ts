@@ -3,10 +3,12 @@ import { paginate, type IterateParams } from "../pagination.js";
 import type {
   BuildAccepted,
   CreatePersonaInput,
+  GenerateSummaryInput,
   ListPersonasParams,
   Persona,
   PersonaBuildStatus,
   PersonaResponse,
+  PersonaSummary,
   RequestOptions,
   UpdatePersonaInput,
 } from "../types.js";
@@ -87,5 +89,32 @@ export class Personas {
   /** Read the current build state — `building`, `ready`, or `not_built`. */
   async status(id: string, opts?: RequestOptions): Promise<PersonaBuildStatus> {
     return this.http.get<PersonaBuildStatus>(`/personas/${seg(id)}/status`, opts);
+  }
+
+  // ── Summary ───────────────────────────────────────────────────────
+
+  /**
+   * Read the persisted persona summary. Throws `NOT_FOUND` when no summary
+   * has been generated yet — call `generateSummary(id)` to produce one.
+   */
+  async getSummary(id: string, opts?: RequestOptions): Promise<PersonaSummary> {
+    return this.http.get<PersonaSummary>(`/personas/${seg(id)}/summary`, opts);
+  }
+
+  /**
+   * Trigger a fresh summary generation for the persona. Both `system_prompt`
+   * (≤ 32 KB) and `temperature` (`[0.0, 2.0]`) are optional overrides — when
+   * omitted, the upstream service uses its defaults.
+   */
+  async generateSummary(
+    id: string,
+    input?: GenerateSummaryInput,
+    opts?: RequestOptions,
+  ): Promise<PersonaSummary> {
+    return this.http.post<PersonaSummary>(
+      `/personas/${seg(id)}/summary`,
+      input ?? {},
+      opts,
+    );
   }
 }

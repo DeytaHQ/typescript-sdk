@@ -86,5 +86,7 @@ export type {
   CreatePersonaInput,
   UpdatePersonaInput,
   ListPersonasParams,
+  PersonaSummary,
+  GenerateSummaryInput,
 } from "./types.js";
 export type { IterateParams } from "./pagination.js";

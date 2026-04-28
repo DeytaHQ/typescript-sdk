@@ -430,6 +430,33 @@ export interface ListPersonasParams {
   page_size?: number;
 }
 
+/**
+ * Persisted persona summary record. Returned by both
+ * `GET /personas/:id/summary` (read) and `POST /personas/:id/summary`
+ * (regenerate). Compute staleness as `persona_built_at > generated_at`.
+ */
+export interface PersonaSummary {
+  /** The post-scratchpad profile prose. */
+  summary: string;
+  /** ISO-8601 datetime when this summary was generated. */
+  generated_at: string;
+  /** ISO-8601 datetime of the persona's last build at read time. */
+  persona_built_at: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Optional overrides for `POST /personas/:id/summary`. Both fields are
+ * optional; the gateway forwards them to Digor, which applies its defaults
+ * (built-in system prompt and `temperature = 0`) when omitted.
+ */
+export interface GenerateSummaryInput {
+  /** Optional system-prompt override. Hard-capped at 32 KB. */
+  system_prompt?: string;
+  /** Optional sampling temperature in `[0.0, 2.0]`. Defaults to `0.0`. */
+  temperature?: number;
+}
+
 // ── Integrations ────────────────────────────────────────────────────
 
 export interface IntegrationSetting {

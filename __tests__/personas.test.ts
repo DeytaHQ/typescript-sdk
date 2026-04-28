@@ -188,4 +188,62 @@ describe("Personas", () => {
     mock.setHandler(() => jsonError(404, "NOT_FOUND", "No persona with id agt_404"));
     await expect(deyta.personas.get("agt_404")).rejects.toBeInstanceOf(DeytaError);
   });
+
+  test("getSummary GETs /personas/:id/summary and returns PersonaSummary", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({
+        summary: "Jane is a senior engineer at Acme who…",
+        generated_at: "2026-04-23T14:46:12.000Z",
+        persona_built_at: "2026-04-23T14:00:00.000Z",
+      }),
+    );
+    const result = await deyta.personas.getSummary("agt_1");
+    expect(result.summary).toMatch(/Jane/);
+    expect(result.generated_at).toBe("2026-04-23T14:46:12.000Z");
+    expect(result.persona_built_at).toBe("2026-04-23T14:00:00.000Z");
+    expect(mock.requests[0]?.method).toBe("GET");
+    expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1\/summary$/);
+  });
+
+  test("getSummary surfaces 404 as DeytaError NOT_FOUND", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => jsonError(404, "NOT_FOUND", "No summary yet"));
+    await expect(deyta.personas.getSummary("agt_1")).rejects.toBeInstanceOf(DeytaError);
+  });
+
+  test("generateSummary POSTs body to /personas/:id/summary", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({
+        summary: "Fresh prose",
+        generated_at: "2026-04-28T11:00:00.000Z",
+        persona_built_at: "2026-04-28T10:00:00.000Z",
+      }),
+    );
+    const result = await deyta.personas.generateSummary("agt_1", {
+      system_prompt: "You are concise.",
+      temperature: 0.4,
+    });
+    expect(result.summary).toBe("Fresh prose");
+    expect(mock.requests[0]?.method).toBe("POST");
+    expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1\/summary$/);
+    expect(mock.requests[0]?.body).toEqual({
+      system_prompt: "You are concise.",
+      temperature: 0.4,
+    });
+  });
+
+  test("generateSummary defaults to an empty body when no overrides supplied", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({
+        summary: "Defaults",
+        generated_at: "2026-04-28T11:00:00.000Z",
+        persona_built_at: "2026-04-28T10:00:00.000Z",
+      }),
+    );
+    await deyta.personas.generateSummary("agt_1");
+    expect(mock.requests[0]?.body).toEqual({});
+  });
 });

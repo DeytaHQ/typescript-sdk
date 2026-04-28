@@ -300,6 +300,25 @@ const { status, last_built_at } = await deyta.personas.status(persona.id);
 
 `build()` is not idempotent — the gateway returns `409 CONFLICT` if a build is already in flight. Poll `status()` to follow progress.
 
+### Summary (read / regenerate)
+
+```ts
+// Read the persisted summary. Throws NOT_FOUND if one hasn't been produced yet.
+const summary = await deyta.personas.getSummary(persona.id);
+// summary: { summary, generated_at, persona_built_at }
+
+// Staleness check: regenerate when the persona has been rebuilt since.
+const stale = summary.persona_built_at > summary.generated_at;
+
+// Trigger a fresh generation. Body is optional.
+const fresh = await deyta.personas.generateSummary(persona.id, {
+  system_prompt: "Write in the third person.",  // optional, ≤ 32 KB
+  temperature: 0.4,                              // optional, [0.0, 2.0]
+});
+```
+
+`generateSummary()` returns `409 CONFLICT` if a summary generation is already in flight, and `404 NOT_FOUND` when the persona itself cannot be found.
+
 ## Error handling
 
 ```ts
