@@ -14,13 +14,25 @@
  */
 import { Deyta } from "../../src/index.js";
 
+let currentStep: string | null = null;
+let lastRequest: { method: string; url: string; status?: number } | null = null;
+
 export function makeClient(): Deyta {
   const apiKey = process.env.DEYTA_API_KEY;
   if (!apiKey) {
     console.error("Set DEYTA_API_KEY before running smoke scripts.");
     process.exit(1);
   }
-  return new Deyta({ apiKey });
+  return new Deyta({
+    apiKey,
+    logger: (event) => {
+      if (event.type === "request") {
+        lastRequest = { method: event.method, url: event.url };
+      } else if (event.type === "response") {
+        lastRequest = { method: event.method, url: event.url, status: event.status };
+      }
+    },
+  });
 }
 
 /** Unique-ish suffix so concurrent smoke runs don't collide on names. */
@@ -31,6 +43,7 @@ export function uniq(prefix: string): string {
 }
 
 export function step(label: string): void {
+  currentStep = label;
   console.log(`\n▸ ${label}`);
 }
 
@@ -42,6 +55,11 @@ export async function runSmoke(name: string, fn: () => Promise<void>): Promise<v
     console.log(`\n✓ ${name} passed (${Date.now() - start}ms)`);
   } catch (err) {
     console.error(`\n✗ ${name} failed (${Date.now() - start}ms)`);
+    if (currentStep) console.error(`  during step: ${currentStep}`);
+    if (lastRequest) {
+      const status = lastRequest.status !== undefined ? ` → HTTP ${lastRequest.status}` : "";
+      console.error(`  last SDK call: ${lastRequest.method} ${lastRequest.url}${status}`);
+    }
     console.error(err);
     process.exit(1);
   }
