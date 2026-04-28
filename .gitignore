@@ -36,3 +36,7 @@ Thumbs.db
 .claude/settings.local.json
 .claude/projects/
 .claude/worktrees/
+.agents/
+.claude/
+AGENTS.md
+CLAUDE.md

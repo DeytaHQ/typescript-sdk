@@ -359,8 +359,8 @@ export interface PersonaSummary {
 
 /**
  * Optional overrides for `POST /personas/:id/summary`. Both fields are
- * optional; the gateway forwards them to Digor, which applies its defaults
- * (built-in system prompt and `temperature = 0`) when omitted.
+ * optional; when omitted, the upstream service applies its defaults (a
+ * built-in system prompt and `temperature = 0`).
  */
 export interface GenerateSummaryInput {
   /** Optional system-prompt override. Hard-capped at 32 KB. */

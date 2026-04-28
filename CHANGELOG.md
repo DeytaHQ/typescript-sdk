@@ -7,7 +7,7 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 ## [0.4.0]
 
 ### Added
-- `personas.getSummary(id)` and `personas.generateSummary(id, { system_prompt?, temperature? })` — wrapping the new gateway routes from console-monorepo PR #352 (DYT-3251 / ADR-075). `getSummary` reads the persisted persona summary; `generateSummary` triggers a fresh generation (Digor) with optional system-prompt and temperature overrides. Both return `PersonaSummary { summary, generated_at, persona_built_at }`. Compute staleness as `persona_built_at > generated_at`.
+- `personas.getSummary(id)` and `personas.generateSummary(id, { system_prompt?, temperature? })` — wrapping the new gateway routes from console-monorepo PR #352 (DYT-3251 / ADR-075). `getSummary` reads the persisted persona summary; `generateSummary` triggers a fresh generation upstream with optional system-prompt and temperature overrides. Both return `PersonaSummary { summary, generated_at, persona_built_at }`. Compute staleness as `persona_built_at > generated_at`.
 - Public types: `PersonaSummary`, `GenerateSummaryInput`, `BuildPersonaInput`. New `Ask*` types: `AskSource`, `AskUsage`, `AskTiming`, `AskCostEvent`. New `Recall*` types: `RecallChunk`, `RecallEntity`, `RecallSourceDocument`.
 
 ### Changed

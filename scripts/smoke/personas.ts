@@ -73,7 +73,7 @@ await runSmoke("personas", async () => {
     }
 
     if (triggerSummary) {
-      step("generateSummary (calls Digor — may take several seconds)");
+      step("generateSummary (upstream LLM call — may take several seconds)");
       const summary = await deyta.personas.generateSummary(persona.id, {
         temperature: 0.2,
       });
