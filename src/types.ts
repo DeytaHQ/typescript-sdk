@@ -87,20 +87,46 @@ export type RecallInput = NamespaceTarget &
     mode?: RecallMode;
   };
 
-/**
- * A single match from a recall query. The shape is best-effort; upstream may
- * include additional fields, captured by the index signature.
- */
-export interface RecallMatch {
+/** Source document referenced by a recall chunk or entity. */
+export interface RecallSourceDocument {
+  id: string;
+  source_type: string;
+  created_at: string;
+  title: string;
+  source: string;
+  source_timestamp: string | null;
+  [key: string]: unknown;
+}
+
+/** Chunk-shaped match returned in the `chunks` array of a recall response. */
+export interface RecallChunk {
+  id: string;
   document_id: string;
   content: string;
   score: number;
-  metadata?: Record<string, unknown>;
+  source: RecallSourceDocument;
+  metadata: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+/** Entity-shaped match returned in the `entities` array of a recall response. */
+export interface RecallEntity {
+  id: string;
+  name: string;
+  entity_type: string;
+  score: number;
+  description: string;
+  source_documents: RecallSourceDocument[];
   [key: string]: unknown;
 }
 
 export interface RecallResult {
-  results: RecallMatch[];
+  query: string;
+  namespace_id: string;
+  chunks: RecallChunk[];
+  entities: RecallEntity[];
+  context_text: string;
+  llm_usage: Array<Record<string, unknown>>;
   [key: string]: unknown;
 }
 
@@ -126,9 +152,72 @@ export type AskInput = NamespaceTarget &
     config?: AskConfig;
   };
 
+// ── Ask response ────────────────────────────────────────────────────
+//
+// The gateway normalizes the upstream agent's verbose streaming event log
+// into this compact non-streaming object. Consumers no longer need to walk
+// events or reconstruct the answer themselves.
+
+/** A memory cited as a source for the answer. */
+export type AskSource = RecallSourceDocument;
+
+/** Per-source token + request counters (one entry per upstream call). */
+export interface AskCostEvent {
+  /** Logical originator (e.g. `"ask_agent"`, a tool name). */
+  source: string;
+  /** Model identifier (e.g. `"openai:gpt-4o"`). */
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  requests: number;
+  total_tokens: number;
+  /** ISO-8601 timestamp. */
+  timestamp: string;
+  [key: string]: unknown;
+}
+
+/** Aggregated token + request counts for the entire ask invocation. */
+export interface AskUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  total_tokens: number;
+  requests: number;
+  /** Per-source breakdown of the aggregated counts above. */
+  by_source: AskCostEvent[];
+  [key: string]: unknown;
+}
+
+export interface AskTiming {
+  /** ISO-8601 datetime when the gateway dispatched the ask. */
+  started_at: string;
+  /** ISO-8601 datetime when the gateway received the upstream response. */
+  finished_at: string;
+  /** End-to-end gateway-side duration in milliseconds. */
+  duration_ms: number;
+  [key: string]: unknown;
+}
+
+/**
+ * Non-streaming answer to a memory query. The gateway normalizes the
+ * upstream agent's streaming event log into this stable shape.
+ */
 export interface AskResult {
+  /**
+   * Stable identifier for this answer (the upstream run ID). Use it to
+   * correlate with upstream logs. Empty string when the upstream did not
+   * emit one.
+   */
+  answer_id: string;
+  /** Synthesized answer text. May be empty if the upstream produced no output. */
   answer: string;
-  sources?: RecallMatch[];
+  /** De-duplicated list of memories cited in the answer. */
+  sources: AskSource[];
+  usage: AskUsage;
+  timing: AskTiming;
   [key: string]: unknown;
 }
 
@@ -219,6 +308,22 @@ export interface BuildAccepted {
   [key: string]: unknown;
 }
 
+/**
+ * Optional build-window overrides for `personas.build()`. All fields are
+ * optional — when omitted, the gateway applies its defaults (60 / 14 / 14 /
+ * 0.5).
+ */
+export interface BuildPersonaInput {
+  /** Context window in days. Default: 60. Minimum: 1. */
+  context_window_days?: number;
+  /** Focus past window in days. Default: 14. Minimum: 1. */
+  focus_past_days?: number;
+  /** Focus future window in days. Default: 14. Minimum: 0. */
+  focus_future_days?: number;
+  /** Focus ratio in `[0, 1]`. Default: 0.5. */
+  focus_ratio?: number;
+}
+
 export interface CreatePersonaInput {
   subject: string;
   external_reference_id?: string;
@@ -235,6 +340,33 @@ export interface UpdatePersonaInput {
 export interface ListPersonasParams {
   page?: number;
   page_size?: number;
+}
+
+/**
+ * Persisted persona summary record. Returned by both
+ * `GET /personas/:id/summary` (read) and `POST /personas/:id/summary`
+ * (regenerate). Compute staleness as `persona_built_at > generated_at`.
+ */
+export interface PersonaSummary {
+  /** The post-scratchpad profile prose. */
+  summary: string;
+  /** ISO-8601 datetime when this summary was generated. */
+  generated_at: string;
+  /** ISO-8601 datetime of the persona's last build at read time. */
+  persona_built_at: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Optional overrides for `POST /personas/:id/summary`. Both fields are
+ * optional; when omitted, the upstream service applies its defaults (a
+ * built-in system prompt and `temperature = 0`).
+ */
+export interface GenerateSummaryInput {
+  /** Optional system-prompt override. Hard-capped at 32 KB. */
+  system_prompt?: string;
+  /** Optional sampling temperature in `[0.0, 2.0]`. Defaults to `0.0`. */
+  temperature?: number;
 }
 
 // ── Integrations ────────────────────────────────────────────────────

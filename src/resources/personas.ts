@@ -2,11 +2,14 @@ import { buildQuery, seg, type HttpClient, type PaginatedResult } from "../clien
 import { paginate, type IterateParams } from "../pagination.js";
 import type {
   BuildAccepted,
+  BuildPersonaInput,
   CreatePersonaInput,
+  GenerateSummaryInput,
   ListPersonasParams,
   Persona,
   PersonaBuildStatus,
   PersonaResponse,
+  PersonaSummary,
   RequestOptions,
   UpdatePersonaInput,
 } from "../types.js";
@@ -79,13 +82,50 @@ export class Personas {
 
   // ── Build lifecycle ───────────────────────────────────────────────
 
-  /** Trigger an async build of the persona. Returns 202 with a `build_id`. */
-  async build(id: string, opts?: RequestOptions): Promise<BuildAccepted> {
-    return this.http.post<BuildAccepted>(`/personas/${seg(id)}/build`, undefined, opts);
+  /**
+   * Trigger an async build of the persona. Returns 202 with a `build_id`.
+   * `input` overrides the default build window — all fields are optional;
+   * the gateway fills in defaults (60 / 14 / 14 / 0.5).
+   */
+  async build(
+    id: string,
+    input?: BuildPersonaInput,
+    opts?: RequestOptions,
+  ): Promise<BuildAccepted> {
+    // Always send a JSON object body — the gateway handler reads
+    // `body.context_window_days` etc. directly and 500s on a missing body.
+    return this.http.post<BuildAccepted>(`/personas/${seg(id)}/build`, input ?? {}, opts);
   }
 
   /** Read the current build state — `building`, `ready`, or `not_built`. */
   async status(id: string, opts?: RequestOptions): Promise<PersonaBuildStatus> {
     return this.http.get<PersonaBuildStatus>(`/personas/${seg(id)}/status`, opts);
+  }
+
+  // ── Summary ───────────────────────────────────────────────────────
+
+  /**
+   * Read the persisted persona summary. Throws `NOT_FOUND` when no summary
+   * has been generated yet — call `generateSummary(id)` to produce one.
+   */
+  async getSummary(id: string, opts?: RequestOptions): Promise<PersonaSummary> {
+    return this.http.get<PersonaSummary>(`/personas/${seg(id)}/summary`, opts);
+  }
+
+  /**
+   * Trigger a fresh summary generation for the persona. Both `system_prompt`
+   * (≤ 32 KB) and `temperature` (`[0.0, 2.0]`) are optional overrides — when
+   * omitted, the upstream service uses its defaults.
+   */
+  async generateSummary(
+    id: string,
+    input?: GenerateSummaryInput,
+    opts?: RequestOptions,
+  ): Promise<PersonaSummary> {
+    return this.http.post<PersonaSummary>(
+      `/personas/${seg(id)}/summary`,
+      input ?? {},
+      opts,
+    );
   }
 }

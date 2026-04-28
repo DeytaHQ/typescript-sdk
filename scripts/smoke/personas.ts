@@ -1,14 +1,19 @@
 /**
  * Smoke test the personas resource: create, get, getByExternalRef, update,
- * list, status, delete. The async build endpoint is exercised behind
- * `--build` since builds may take minutes to complete.
+ * list, status, getSummary, delete. The async build endpoint is exercised
+ * behind `--build` since builds may take minutes to complete; likewise
+ * `generateSummary` is exercised behind `--summary` because it triggers an
+ * upstream LLM call that can take seconds.
  *
  * Run: DEYTA_API_KEY=… bun run scripts/smoke/personas.ts
  *      DEYTA_API_KEY=… bun run scripts/smoke/personas.ts --build
+ *      DEYTA_API_KEY=… bun run scripts/smoke/personas.ts --summary
  */
-import { makeClient, runSmoke, step, uniq } from "./_shared.js";
+import { DeytaError } from "../../src/index.js";
+import { expectedFailure, makeClient, runSmoke, step, uniq } from "./_shared.js";
 
 const triggerBuild = process.argv.includes("--build");
+const triggerSummary = process.argv.includes("--summary");
 
 await runSmoke("personas", async () => {
   const deyta = makeClient();
@@ -51,6 +56,36 @@ await runSmoke("personas", async () => {
       console.log("  build_id:", accepted.build_id, "status:", accepted.status);
     } else {
       console.log("  (skipping build — pass --build to trigger)");
+    }
+
+    step("getSummary (pre-generation — expects 404)");
+    try {
+      const existing = await deyta.personas.getSummary(persona.id);
+      console.warn("  ⚠ unexpected: a fresh persona already has a summary");
+      console.warn("  generated_at:", existing.generated_at);
+    } catch (err) {
+      if (err instanceof DeytaError && err.code === "NOT_FOUND") {
+        expectedFailure();
+        console.log("  (no summary yet — got NOT_FOUND as expected)");
+      } else {
+        throw err;
+      }
+    }
+
+    if (triggerSummary) {
+      step("generateSummary (upstream LLM call — may take several seconds)");
+      const summary = await deyta.personas.generateSummary(persona.id, {
+        temperature: 0.2,
+      });
+      console.log("  generated_at:", summary.generated_at);
+      console.log("  persona_built_at:", summary.persona_built_at);
+      console.log("  preview:", summary.summary.slice(0, 120));
+
+      step("getSummary (post-generation — expects 200)");
+      const persisted = await deyta.personas.getSummary(persona.id);
+      console.log("  matches:", persisted.generated_at === summary.generated_at);
+    } else {
+      console.log("  (skipping generateSummary — pass --summary to trigger)");
     }
   } finally {
     step("delete persona (cleanup)");

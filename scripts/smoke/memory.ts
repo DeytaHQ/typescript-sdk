@@ -4,19 +4,7 @@
  *
  * Run: DEYTA_API_KEY=… bun run scripts/smoke/memory.ts
  */
-import { makeClient, runSmoke, step, uniq } from "./_shared.js";
-
-/** Stringify a value for diagnostic logs, capping length so output stays usable. */
-function preview(value: unknown, max = 600): string {
-  let json: string;
-  try {
-    json = JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-  if (json === undefined) return String(value);
-  return json.length > max ? `${json.slice(0, max)}…` : json;
-}
+import { makeClient, preview, runSmoke, step, uniq } from "./_shared.js";
 
 await runSmoke("memory", async () => {
   const deyta = makeClient();
@@ -45,13 +33,12 @@ await runSmoke("memory", async () => {
       limit: 3,
       mode: "hybrid",
     });
-    if (Array.isArray(recalled?.results)) {
-      console.log("  matches:", recalled.results.length);
-      if (recalled.results[0]) {
-        console.log("  top score:", recalled.results[0].score);
-      }
+    if (Array.isArray(recalled?.chunks)) {
+      console.log("  chunks:", recalled.chunks.length);
+      console.log("  entities:", recalled.entities.length);
+      console.log("  context preview:", recalled.context_text.slice(0, 120));
     } else {
-      console.warn("  ⚠ no `results` array on recall response — gateway shape may have drifted from RecallResult");
+      console.warn("  ⚠ no `chunks` array on recall response — gateway shape may have drifted from RecallResult");
       console.warn("  raw recall response:", preview(recalled));
     }
 
@@ -61,9 +48,16 @@ await runSmoke("memory", async () => {
       query: "When is the team standup?",
     });
     if (typeof answered?.answer === "string") {
+      console.log("  answer_id:", answered.answer_id || "(none)");
       console.log("  answer:", answered.answer.slice(0, 120));
+      console.log("  sources:", answered.sources.length);
+      console.log(
+        "  usage:",
+        `${answered.usage.total_tokens} tokens / ${answered.usage.requests} requests`,
+      );
+      console.log("  duration_ms:", answered.timing.duration_ms);
     } else {
-      console.warn("  ⚠ no `answer` string on ask response — gateway shape may have drifted from AskResult");
+      console.warn("  ⚠ ask response was not the normalized AskResult shape");
       console.warn("  raw ask response:", preview(answered));
     }
 

@@ -34,13 +34,19 @@ export type {
   RememberResult,
   RecallInput,
   RecallMode,
-  RecallMatch,
+  RecallChunk,
+  RecallEntity,
+  RecallSourceDocument,
   RecallResult,
   ForgetInput,
   ForgetResult,
   AskInput,
   AskConfig,
   AskResult,
+  AskSource,
+  AskUsage,
+  AskTiming,
+  AskCostEvent,
 
   // Namespaces
   Namespace,
@@ -62,9 +68,12 @@ export type {
   PersonaBuildStatus,
   PersonaStatusValue,
   BuildAccepted,
+  BuildPersonaInput,
   ComposedPersona,
   CreatePersonaInput,
   UpdatePersonaInput,
   ListPersonasParams,
+  PersonaSummary,
+  GenerateSummaryInput,
 } from "./types.js";
 export type { IterateParams } from "./pagination.js";

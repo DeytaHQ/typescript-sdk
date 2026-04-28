@@ -1,6 +1,6 @@
 {
   "name": "@deyta-ai/sdk",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "TypeScript SDK for the Deyta platform — memory, namespaces, integrations, and personas.",
   "type": "module",
   "main": "./dist/index.cjs",

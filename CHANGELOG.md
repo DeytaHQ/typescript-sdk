@@ -4,6 +4,17 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0]
+
+### Added
+- `personas.getSummary(id)` and `personas.generateSummary(id, { system_prompt?, temperature? })` — wrapping the new gateway persona-summary routes. `getSummary` reads the persisted persona summary; `generateSummary` triggers a fresh upstream generation with optional system-prompt and temperature overrides. Both return `PersonaSummary { summary, generated_at, persona_built_at }`. Compute staleness as `persona_built_at > generated_at`.
+- Public types: `PersonaSummary`, `GenerateSummaryInput`, `BuildPersonaInput`. New `Ask*` types: `AskSource`, `AskUsage`, `AskTiming`, `AskCostEvent`. New `Recall*` types: `RecallChunk`, `RecallEntity`, `RecallSourceDocument`.
+
+### Changed
+- **Breaking** `RecallResult` now matches the actual gateway shape: `{ query, namespace_id, chunks, entities, context_text, llm_usage }`. The previous `{ results: RecallMatch[] }` envelope and the `RecallMatch` type are gone.
+- **Breaking** `AskResult` now matches the normalized non-streaming gateway shape: `{ answer_id, answer, sources, usage, timing }`. The previous `AskEvent[]` streaming model and all its event interfaces (`AskRunStartedEvent`, `AskToolCall*Event`, `AskTextMessage*Event`, `AskCustomEvent` variants, `AskEntity`, `AskUnknownCustomEvent`) are gone — callers no longer walk events to reconstruct the answer.
+- **Breaking** `personas.build(id, input?, opts?)` — added an optional `BuildPersonaInput` argument (`context_window_days`, `focus_past_days`, `focus_future_days`, `focus_ratio`). The SDK now always sends a JSON-object body (defaulting to `{}`); the gateway handler reads `body.<field>` directly and 500s on a missing body.
+
 ## [0.3.1]
 
 ### Changed

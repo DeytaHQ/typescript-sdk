@@ -107,7 +107,7 @@ const result = await deyta.memory.recall({
   from: new Date("2026-04-01T00:00:00Z"),      // Optional inclusive lower bound on event time
   until: "2026-04-30T23:59:59Z",               // Optional inclusive upper bound (Date | ISO string)
 });
-// result: { results: RecallMatch[] }
+// result: { query, namespace_id, chunks, entities, context_text, llm_usage }
 ```
 
 `from` and `until` accept either a `Date` or an ISO-8601 string. The SDK serializes them to the wire format expected by the API.
@@ -125,7 +125,7 @@ const result = await deyta.memory.forget({
 ### `ask`
 
 ```ts
-const answer = await deyta.memory.ask({
+const result = await deyta.memory.ask({
   namespace_id: "ns_123",
   query: "What are the key project milestones?",
   config: {
@@ -137,8 +137,16 @@ const answer = await deyta.memory.ask({
   from: new Date("2026-04-01T00:00:00Z"),
   until: new Date("2026-04-30T23:59:59Z"),
 });
-// answer: { answer, sources?, ... }
+// result: {
+//   answer_id: string;          // upstream run ID — empty string if absent
+//   answer: string;             // synthesized answer text
+//   sources: AskSource[];       // de-duplicated cited memories
+//   usage: AskUsage;            // aggregated token/request counts + per-source breakdown
+//   timing: AskTiming;          // started_at / finished_at / duration_ms
+// }
 ```
+
+The gateway normalizes the upstream agent's verbose streaming event log into this stable non-streaming shape — callers don't have to walk events.
 
 ## Namespaces
 
@@ -282,13 +290,41 @@ await deyta.personas.delete(persona.id);
 ### Build / status
 
 ```ts
+// Defaults: 60 / 14 / 14 / 0.5 (the gateway fills these in when omitted).
 const { build_id } = await deyta.personas.build(persona.id);  // HTTP 202
+
+// Override the build window if you need to:
+await deyta.personas.build(persona.id, {
+  context_window_days: 30,
+  focus_past_days: 7,
+  focus_future_days: 7,
+  focus_ratio: 0.75,
+});
 
 const { status, last_built_at } = await deyta.personas.status(persona.id);
 // status: "building" | "ready" | "not_built"
 ```
 
 `build()` is not idempotent — the gateway returns `409 CONFLICT` if a build is already in flight. Poll `status()` to follow progress.
+
+### Summary (read / regenerate)
+
+```ts
+// Read the persisted summary. Throws NOT_FOUND if one hasn't been produced yet.
+const summary = await deyta.personas.getSummary(persona.id);
+// summary: { summary, generated_at, persona_built_at }
+
+// Staleness check: regenerate when the persona has been rebuilt since.
+const stale = summary.persona_built_at > summary.generated_at;
+
+// Trigger a fresh generation. Body is optional.
+const fresh = await deyta.personas.generateSummary(persona.id, {
+  system_prompt: "Write in the third person.",  // optional, ≤ 32 KB
+  temperature: 0.4,                              // optional, [0.0, 2.0]
+});
+```
+
+`generateSummary()` returns `409 CONFLICT` if a summary generation is already in flight, and `404 NOT_FOUND` when the persona itself cannot be found.
 
 ## Error handling
 

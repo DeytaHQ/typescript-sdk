@@ -158,7 +158,7 @@ describe("Personas", () => {
     expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1$/);
   });
 
-  test("build POSTs to /personas/:id/build and returns BuildAccepted (202)", async () => {
+  test("build POSTs to /personas/:id/build with empty-object body by default", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonOk({ build_id: "bld_1", status: "accepted" as const }, 202),
@@ -168,6 +168,27 @@ describe("Personas", () => {
     expect(result.status).toBe("accepted");
     expect(mock.requests[0]?.method).toBe("POST");
     expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1\/build$/);
+    // Always send an object body — gateway 500s on missing body.
+    expect(mock.requests[0]?.body).toEqual({});
+  });
+
+  test("build forwards build-window overrides", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({ build_id: "bld_2", status: "accepted" as const }, 202),
+    );
+    await deyta.personas.build("agt_1", {
+      context_window_days: 30,
+      focus_past_days: 7,
+      focus_future_days: 7,
+      focus_ratio: 0.75,
+    });
+    expect(mock.requests[0]?.body).toEqual({
+      context_window_days: 30,
+      focus_past_days: 7,
+      focus_future_days: 7,
+      focus_ratio: 0.75,
+    });
   });
 
   test("status GETs /personas/:id/status", async () => {
@@ -187,5 +208,63 @@ describe("Personas", () => {
     const { deyta, mock } = setup();
     mock.setHandler(() => jsonError(404, "NOT_FOUND", "No persona with id agt_404"));
     await expect(deyta.personas.get("agt_404")).rejects.toBeInstanceOf(DeytaError);
+  });
+
+  test("getSummary GETs /personas/:id/summary and returns PersonaSummary", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({
+        summary: "Jane is a senior engineer at Acme who…",
+        generated_at: "2026-04-23T14:46:12.000Z",
+        persona_built_at: "2026-04-23T14:00:00.000Z",
+      }),
+    );
+    const result = await deyta.personas.getSummary("agt_1");
+    expect(result.summary).toMatch(/Jane/);
+    expect(result.generated_at).toBe("2026-04-23T14:46:12.000Z");
+    expect(result.persona_built_at).toBe("2026-04-23T14:00:00.000Z");
+    expect(mock.requests[0]?.method).toBe("GET");
+    expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1\/summary$/);
+  });
+
+  test("getSummary surfaces 404 as DeytaError NOT_FOUND", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => jsonError(404, "NOT_FOUND", "No summary yet"));
+    await expect(deyta.personas.getSummary("agt_1")).rejects.toBeInstanceOf(DeytaError);
+  });
+
+  test("generateSummary POSTs body to /personas/:id/summary", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({
+        summary: "Fresh prose",
+        generated_at: "2026-04-28T11:00:00.000Z",
+        persona_built_at: "2026-04-28T10:00:00.000Z",
+      }),
+    );
+    const result = await deyta.personas.generateSummary("agt_1", {
+      system_prompt: "You are concise.",
+      temperature: 0.4,
+    });
+    expect(result.summary).toBe("Fresh prose");
+    expect(mock.requests[0]?.method).toBe("POST");
+    expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1\/summary$/);
+    expect(mock.requests[0]?.body).toEqual({
+      system_prompt: "You are concise.",
+      temperature: 0.4,
+    });
+  });
+
+  test("generateSummary defaults to an empty body when no overrides supplied", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({
+        summary: "Defaults",
+        generated_at: "2026-04-28T11:00:00.000Z",
+        persona_built_at: "2026-04-28T10:00:00.000Z",
+      }),
+    );
+    await deyta.personas.generateSummary("agt_1");
+    expect(mock.requests[0]?.body).toEqual({});
   });
 });

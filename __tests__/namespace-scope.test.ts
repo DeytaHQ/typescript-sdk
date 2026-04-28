@@ -44,7 +44,16 @@ describe("namespaces.scope(id)", () => {
 
   test("recall preserves time bounds and adds namespace_id", async () => {
     const { deyta, mock } = setup();
-    mock.setHandler(() => jsonOk({ results: [] }));
+    mock.setHandler(() =>
+      jsonOk({
+        query: "x",
+        namespace_id: "ns_42",
+        chunks: [],
+        entities: [],
+        context_text: "",
+        llm_usage: [],
+      }),
+    );
     const ns = deyta.namespaces.scope("ns_42");
     await ns.recall({ query: "x", from: new Date("2026-01-01T00:00:00Z") });
     const body = mock.requests[0]?.body as Record<string, unknown>;

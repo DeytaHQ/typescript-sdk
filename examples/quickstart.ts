@@ -40,7 +40,7 @@ const recalled = await deyta.memory.recall({
   limit: 3,
 });
 
-console.log("Recalled:", recalled.results.length, "matches");
+console.log("Recalled:", recalled.chunks.length, "chunks");
 console.log(recalled);
 
 // Clean up.
