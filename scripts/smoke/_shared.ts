@@ -15,7 +15,14 @@
 import { Deyta } from "../../src/index.js";
 
 let currentStep: string | null = null;
-let lastRequest: { method: string; url: string; status?: number } | null = null;
+
+interface CallRecord {
+  method: string;
+  url: string;
+  status?: number;
+  inFlight: boolean;
+}
+let lastCall: CallRecord | null = null;
 
 export function makeClient(): Deyta {
   const apiKey = process.env.DEYTA_API_KEY;
@@ -27,9 +34,16 @@ export function makeClient(): Deyta {
     apiKey,
     logger: (event) => {
       if (event.type === "request") {
-        lastRequest = { method: event.method, url: event.url };
+        lastCall = { method: event.method, url: event.url, inFlight: true };
       } else if (event.type === "response") {
-        lastRequest = { method: event.method, url: event.url, status: event.status };
+        lastCall = {
+          method: event.method,
+          url: event.url,
+          status: event.status,
+          inFlight: false,
+        };
+      } else if (event.type === "error" && lastCall) {
+        lastCall = { ...lastCall, inFlight: false };
       }
     },
   });
@@ -68,9 +82,14 @@ export async function runSmoke(name: string, fn: () => Promise<void>): Promise<v
   } catch (err) {
     console.error(`\n✗ ${name} failed (${Date.now() - start}ms)`);
     if (currentStep) console.error(`  during step: ${currentStep}`);
-    if (lastRequest) {
-      const status = lastRequest.status !== undefined ? ` → HTTP ${lastRequest.status}` : "";
-      console.error(`  last SDK call: ${lastRequest.method} ${lastRequest.url}${status}`);
+    if (lastCall) {
+      const status =
+        lastCall.status !== undefined
+          ? ` → HTTP ${lastCall.status}`
+          : lastCall.inFlight
+            ? " (in flight — no response captured)"
+            : "";
+      console.error(`  last SDK call: ${lastCall.method} ${lastCall.url}${status}`);
     }
     console.error(err);
     process.exit(1);
