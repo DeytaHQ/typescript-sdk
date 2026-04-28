@@ -83,6 +83,24 @@ export function step(label: string): void {
   console.log(`\n▸ ${label}`);
 }
 
+/**
+ * Tell the diagnostics layer that the most recent SDK failure was expected
+ * (e.g., a 404 from `getSummary` on a fresh persona, or from `get` after
+ * `delete`). Only clears `firstError` if it was set by the same call —
+ * so an earlier real failure isn't wiped out when a later expected error
+ * is handled (e.g., build 500 → cleanup → verify 404).
+ */
+export function expectedFailure(): void {
+  if (
+    firstError &&
+    lastCall &&
+    firstError.call?.method === lastCall.method &&
+    firstError.call?.url === lastCall.url
+  ) {
+    firstError = null;
+  }
+}
+
 /** Pretty-print a value for diagnostic logs, capping length so output stays usable. */
 export function preview(value: unknown, max = 800): string {
   let json: string;

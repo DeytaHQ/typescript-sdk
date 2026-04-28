@@ -10,14 +10,10 @@
  *      DEYTA_API_KEY=… bun run scripts/smoke/personas.ts --summary
  */
 import { DeytaError } from "../../src/index.js";
-import { makeClient, preview, runSmoke, step, uniq } from "./_shared.js";
+import { expectedFailure, makeClient, runSmoke, step, uniq } from "./_shared.js";
 
 const triggerBuild = process.argv.includes("--build");
 const triggerSummary = process.argv.includes("--summary");
-
-function logResponse(value: unknown): void {
-  console.log("  response:", preview(value));
-}
 
 await runSmoke("personas", async () => {
   const deyta = makeClient();
@@ -29,35 +25,35 @@ await runSmoke("personas", async () => {
     description: "Created by scripts/smoke/personas.ts",
     external_reference_id: externalRef,
   });
-  logResponse(persona);
+  console.log("  id:", persona.id, "namespace_id:", persona.namespace_id);
 
   try {
     step("get by id");
     const fetched = await deyta.personas.get(persona.id);
-    logResponse(fetched);
+    console.log("  built:", fetched.built);
 
     step("get by external_reference_id");
     const byRef = await deyta.personas.getByExternalRef(externalRef);
-    logResponse(byRef);
+    console.log("  id matches:", byRef.id === persona.id);
 
     step("update description");
     const updated = await deyta.personas.update(persona.id, {
       description: "Updated by smoke run",
     });
-    logResponse(updated);
+    console.log("  description:", updated.description);
 
     step("list page 1");
     const page = await deyta.personas.list({ page: 1, page_size: 5 });
-    logResponse(page);
+    console.log("  page items:", page.data.length, "total:", page.pagination.total);
 
     step("status (pre-build)");
     const status = await deyta.personas.status(persona.id);
-    logResponse(status);
+    console.log("  status:", status.status, "last_built_at:", status.last_built_at);
 
     if (triggerBuild) {
       step("build (async — not awaited to completion)");
       const accepted = await deyta.personas.build(persona.id);
-      logResponse(accepted);
+      console.log("  build_id:", accepted.build_id, "status:", accepted.status);
     } else {
       console.log("  (skipping build — pass --build to trigger)");
     }
@@ -66,10 +62,11 @@ await runSmoke("personas", async () => {
     try {
       const existing = await deyta.personas.getSummary(persona.id);
       console.warn("  ⚠ unexpected: a fresh persona already has a summary");
-      logResponse(existing);
+      console.warn("  generated_at:", existing.generated_at);
     } catch (err) {
       if (err instanceof DeytaError && err.code === "NOT_FOUND") {
-        console.log("  response: <DeytaError NOT_FOUND 404> (expected)");
+        expectedFailure();
+        console.log("  (no summary yet — got NOT_FOUND as expected)");
       } else {
         throw err;
       }
@@ -80,27 +77,30 @@ await runSmoke("personas", async () => {
       const summary = await deyta.personas.generateSummary(persona.id, {
         temperature: 0.2,
       });
-      logResponse(summary);
+      console.log("  generated_at:", summary.generated_at);
+      console.log("  persona_built_at:", summary.persona_built_at);
+      console.log("  preview:", summary.summary.slice(0, 120));
 
       step("getSummary (post-generation — expects 200)");
       const persisted = await deyta.personas.getSummary(persona.id);
-      logResponse(persisted);
+      console.log("  matches:", persisted.generated_at === summary.generated_at);
     } else {
       console.log("  (skipping generateSummary — pass --summary to trigger)");
     }
   } finally {
     step("delete persona (cleanup)");
     await deyta.personas.delete(persona.id);
-    console.log("  response: <204 No Content>");
+    console.log("  deleted:", persona.id);
 
     step("verify delete (get expects 404)");
     try {
       const ghost = await deyta.personas.get(persona.id);
       console.warn("  ⚠ unexpected: persona still readable after delete");
-      logResponse(ghost);
+      console.warn("  id:", ghost.id);
     } catch (err) {
       if (err instanceof DeytaError && err.code === "NOT_FOUND") {
-        console.log("  response: <DeytaError NOT_FOUND 404> (expected — delete confirmed)");
+        expectedFailure();
+        console.log("  (got NOT_FOUND as expected — delete confirmed)");
       } else {
         throw err;
       }
