@@ -56,7 +56,7 @@ const connections = await ns.integrations.list();
 const session = await ns.integrations.start({ provider: "google_drive" });
 ```
 
-The scope is a lightweight handle — no network call is made when constructing it.
+The scope is a lightweight handle — no network call is made when constructing it. Personas expose the same pattern via [`deyta.personas.scope(...)`](#sub-client-scope).
 
 ## Configuration
 
@@ -338,6 +338,36 @@ const fresh = await deyta.personas.generateSummary(persona.id, {
 ```
 
 `generateSummary()` returns `409 CONFLICT` if a summary generation is already in flight, and `404 NOT_FOUND` when the persona itself cannot be found.
+
+### Sub-client (scope)
+
+Operate on a single persona without re-stating its identifier on every call:
+
+```ts
+const p = deyta.personas.scope(persona.id);
+// or by external reference:
+const p = deyta.personas.scopeByExternalRef("user-abc");
+
+// Persona lifecycle
+await p.metadata();
+await p.update({ description: "updated" });
+await p.build();
+await p.status();
+await p.getSummary();
+await p.generateSummary();
+await p.delete();
+
+// Memory — routed through the persona's backing namespace.
+// The first call resolves and caches the namespace_id.
+await p.remember({ content: "..." });
+await p.recall({ query: "..." });
+
+// Integrations targeted at this persona
+await p.integrations.list();
+await p.integrations.start({ provider: "google_drive" });
+```
+
+Like the namespace scope, this is a lightweight handle — no network call is made when constructing it. When scoped by external reference, the first lifecycle call performs a single `metadata()` fetch to resolve the persona's `id` and caches it for subsequent calls.
 
 ## Error handling
 

@@ -4,6 +4,14 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0]
+
+### Added
+- `personas.scope(id)` and `personas.scopeByExternalRef(externalRef)` — return a lightweight `PersonaScope` handle that carries the persona target across calls. Mirrors the existing `namespaces.scope(...)` pattern. No network call is made when constructing the scope.
+- `PersonaScope` exposes the full persona lifecycle (`metadata`, `update`, `delete`, `build`, `status`, `getSummary`, `generateSummary`) plus memory ops (`remember`, `recall`, `ask`, `forget`) routed through the persona's backing namespace. The `namespace_id` is resolved (and cached) via a single `metadata()` fetch the first time a memory op runs; when the scope was created by external reference, the persona `id` is likewise resolved once and cached for subsequent lifecycle calls.
+- `PersonaScope.integrations` (`PersonaIntegrationsScope`) — `list`, `iterate`, `start`, `get`, `complete`, `delete` with the persona target captured implicitly. Translates the captured `PersonaTarget` to the gateway's typed `Target` (`type: "persona"`) shape.
+- Public types: `PersonaTarget`. New exports: `PersonaScope`, `PersonaIntegrationsScope`.
+
 ## [0.4.1]
 
 ### Changed
