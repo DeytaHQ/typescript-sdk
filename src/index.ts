@@ -12,6 +12,10 @@ export {
   NamespaceScope,
   NamespaceIntegrationsScope,
 } from "./resources/namespace-scope.js";
+export {
+  PersonaScope,
+  PersonaIntegrationsScope,
+} from "./resources/persona-scope.js";
 export { SDK_VERSION } from "./version.js";
 export type {
   // Response envelopes
@@ -23,6 +27,7 @@ export type {
 
   // Targeting
   NamespaceTarget,
+  PersonaTarget,
   Target,
 
   // Time bounds

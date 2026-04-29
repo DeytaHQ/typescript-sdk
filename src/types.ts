@@ -40,6 +40,14 @@ export type NamespaceTarget =
   | { external_reference_id: string; namespace_id?: never };
 
 /**
+ * Identify a persona by its `id` or its `external_reference_id`. Provide
+ * exactly one. Used by `personas.scope()` / `personas.scopeByExternalRef()`.
+ */
+export type PersonaTarget =
+  | { persona_id: string; external_reference_id?: never }
+  | { external_reference_id: string; persona_id?: never };
+
+/**
  * Typed reference to an addressable resource (namespace or persona). Provide
  * exactly one of `id` or `external_reference_id`. Used by the integrations
  * surface to pick a namespace directly or via the persona that owns it.

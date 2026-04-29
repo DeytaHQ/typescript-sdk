@@ -1,5 +1,8 @@
 import { buildQuery, seg, type HttpClient, type PaginatedResult } from "../client.js";
 import { paginate, type IterateParams } from "../pagination.js";
+import type { Integrations } from "./integrations.js";
+import type { Memory } from "./memory.js";
+import { PersonaScope } from "./persona-scope.js";
 import type {
   BuildAccepted,
   BuildPersonaInput,
@@ -20,7 +23,11 @@ import type {
  * persona operation.
  */
 export class Personas {
-  constructor(private readonly http: HttpClient) {}
+  constructor(
+    private readonly http: HttpClient,
+    private readonly memory: Memory,
+    private readonly integrations: Integrations,
+  ) {}
 
   // ── CRUD ──────────────────────────────────────────────────────────
 
@@ -126,6 +133,36 @@ export class Personas {
       `/personas/${seg(id)}/summary`,
       input ?? {},
       opts,
+    );
+  }
+
+  // ── Sub-clients ───────────────────────────────────────────────────
+
+  /**
+   * Returns a scoped sub-client for operating on a single persona. No
+   * network call is made — the scope is a lightweight handle.
+   */
+  scope(id: string): PersonaScope {
+    return new PersonaScope(
+      this.http,
+      this.memory,
+      this,
+      this.integrations,
+      { persona_id: id },
+    );
+  }
+
+  /**
+   * Returns a scoped sub-client identified by external reference. No network
+   * call is made until the first operation runs (or `metadata()` is called).
+   */
+  scopeByExternalRef(externalRef: string): PersonaScope {
+    return new PersonaScope(
+      this.http,
+      this.memory,
+      this,
+      this.integrations,
+      { external_reference_id: externalRef },
     );
   }
 }
