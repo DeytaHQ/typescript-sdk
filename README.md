@@ -235,11 +235,6 @@ const start = await deyta.integrations.startConnection({
 // start.session_token — pass to @nangohq/frontend SDK
 // start.auth_link_url — OAuth redirect URL
 
-// Once the user finishes the OAuth flow in the browser, the gateway records
-// the completed connection server-side via its provider callback — no SDK
-// call is required to finalize. Re-fetch with listConnections / getConnection
-// to observe the connection's `status` transition to `connected`.
-
 await deyta.integrations.deleteConnection(start.id);
 ```
 

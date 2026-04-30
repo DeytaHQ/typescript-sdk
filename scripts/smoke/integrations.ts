@@ -2,10 +2,6 @@
  * Smoke test the read-only surfaces of the integrations resource:
  * listProviders and listConnections (scoped to a throwaway namespace).
  *
- * The OAuth-mutating endpoint (startConnection) is intentionally skipped —
- * it requires an interactive browser flow. (Completion is handled by the
- * gateway's provider callback, not by an SDK call.)
- *
  * Run: DEYTA_API_KEY=… bun run scripts/smoke/integrations.ts
  */
 import { makeClient, runSmoke, step, uniq } from "./_shared.js";

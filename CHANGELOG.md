@@ -7,7 +7,7 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 ## [Unreleased]
 
 ### Removed
-- **Breaking** `Integrations.completeConnection`, the `CompleteConnectionInput` type, and the `complete()` shortcuts on `NamespaceIntegrationsScope` and `PersonaIntegrationsScope` are gone. The OAuth flow now finalizes server-side via the gateway's provider callback once the user finishes the browser-side auth handed back through `startConnection`'s `auth_link_url`; no SDK call is needed to complete a connection. Observe the resulting connection by re-fetching with `listConnections` / `getConnection` and reading `status`.
+- **Breaking** `Integrations.completeConnection`, the `CompleteConnectionInput` type, and the `complete()` shortcuts on `NamespaceIntegrationsScope` and `PersonaIntegrationsScope`.
 
 ## [0.5.0]
 
