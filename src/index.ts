@@ -65,7 +65,6 @@ export type {
   ListConnectionsParams,
   StartConnectionInput,
   StartConnectionResult,
-  CompleteConnectionInput,
 
   // Personas
   Persona,
