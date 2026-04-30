@@ -6,7 +6,6 @@ import type { Namespaces } from "./namespaces.js";
 import type {
   AskInput,
   AskResult,
-  CompleteConnectionInput,
   DataSourceConnection,
   ForgetInput,
   ForgetResult,
@@ -144,14 +143,6 @@ export class NamespaceIntegrationsScope {
   /** Connection-scoped — does not require a target. */
   get(id: string, opts?: RequestOptions): Promise<DataSourceConnection> {
     return this.integrations.getConnection(id, opts);
-  }
-
-  /** Connection-scoped — does not require a target. */
-  complete(
-    input: CompleteConnectionInput,
-    opts?: RequestOptions,
-  ): Promise<DataSourceConnection> {
-    return this.integrations.completeConnection(input, opts);
   }
 
   /** Connection-scoped — does not require a target. */

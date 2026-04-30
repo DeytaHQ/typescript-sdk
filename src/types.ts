@@ -431,14 +431,6 @@ export interface StartConnectionResult extends DataSourceConnection {
   auth_link_url: string;
 }
 
-export interface CompleteConnectionInput {
-  id: string;
-  token: string;
-  account_id: string;
-  connection_id: string;
-  provider: string;
-}
-
 // ── Request options ─────────────────────────────────────────────────
 
 export interface RequestOptions {

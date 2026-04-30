@@ -1,7 +1,6 @@
 import { buildQuery, seg, type HttpClient, type PaginatedResult } from "../client.js";
 import { paginate, type IterateParams } from "../pagination.js";
 import type {
-  CompleteConnectionInput,
   DataSourceConnection,
   IntegrationSetting,
   ListConnectionsParams,
@@ -77,17 +76,6 @@ export class Integrations {
   ): Promise<StartConnectionResult> {
     return this.http.post<StartConnectionResult>(
       "/integrations/connections/start",
-      input,
-      opts,
-    );
-  }
-
-  async completeConnection(
-    input: CompleteConnectionInput,
-    opts?: RequestOptions,
-  ): Promise<DataSourceConnection> {
-    return this.http.post<DataSourceConnection>(
-      "/integrations/connections/complete",
       input,
       opts,
     );

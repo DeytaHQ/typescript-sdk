@@ -235,15 +235,7 @@ const start = await deyta.integrations.startConnection({
 // start.session_token — pass to @nangohq/frontend SDK
 // start.auth_link_url — OAuth redirect URL
 
-const completed = await deyta.integrations.completeConnection({
-  id: start.id,
-  token: "oauth_token_from_nango",
-  account_id: "account_id_from_nango",
-  connection_id: "connection_id_from_nango",
-  provider: "google_drive",
-});
-
-await deyta.integrations.deleteConnection(completed.id);
+await deyta.integrations.deleteConnection(start.id);
 ```
 
 ## Personas

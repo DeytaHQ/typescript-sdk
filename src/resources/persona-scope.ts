@@ -8,7 +8,6 @@ import type {
   AskResult,
   BuildAccepted,
   BuildPersonaInput,
-  CompleteConnectionInput,
   DataSourceConnection,
   ForgetInput,
   ForgetResult,
@@ -215,14 +214,6 @@ export class PersonaIntegrationsScope {
   /** Connection-scoped — does not require a target. */
   get(id: string, opts?: RequestOptions): Promise<DataSourceConnection> {
     return this.integrations.getConnection(id, opts);
-  }
-
-  /** Connection-scoped — does not require a target. */
-  complete(
-    input: CompleteConnectionInput,
-    opts?: RequestOptions,
-  ): Promise<DataSourceConnection> {
-    return this.integrations.completeConnection(input, opts);
   }
 
   /** Connection-scoped — does not require a target. */

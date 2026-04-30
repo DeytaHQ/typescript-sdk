@@ -4,6 +4,13 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.5.1]
+
+### Removed
+- **Breaking** `Integrations.completeConnection`, the `CompleteConnectionInput` type, and the `complete()` shortcuts on `NamespaceIntegrationsScope` and `PersonaIntegrationsScope`. Connection `status` is now set by the Nango webhook after the user completes the OAuth flow handed back through `startConnection`'s `auth_link_url`; callers observe the result via `listConnections` / `getConnection`.
+
 ## [0.5.0]
 
 ### Added
