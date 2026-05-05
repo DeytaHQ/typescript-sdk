@@ -49,6 +49,12 @@ await runSmoke("personas", async () => {
     step("status (pre-build)");
     const status = await deyta.personas.status(persona.id);
     console.log("  status:", status.status, "last_built_at:", status.last_built_at);
+    console.log(
+      "  summary.available:",
+      status.summary.available,
+      "summary.generated_at:",
+      status.summary.generated_at,
+    );
 
     if (triggerBuild) {
       step("build (async — not awaited to completion)");

@@ -71,6 +71,7 @@ export type {
   PersonaResponse,
   PersonaBuildStatus,
   PersonaStatusValue,
+  PersonaSummaryReadiness,
   BuildAccepted,
   BuildPersonaInput,
   ComposedPersona,

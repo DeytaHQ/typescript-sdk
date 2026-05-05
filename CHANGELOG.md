@@ -6,6 +6,15 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `PersonaBuildStatus.summary` — a `PersonaSummaryReadiness` block (`available`, `generated_at`, `persona_built_at`) returned by `personas.status()`. Lets callers detect whether a persona summary has been generated without a separate `getSummary()` round-trip (which would throw `NOT_FOUND` when none exists). Compute staleness against the persona's current build with `last_built_at > generated_at`; skip when either side is null.
+- `PersonaBuildStatus.build_progress` (optional) — populated only when the gateway is called with `?details=true`.
+- `"queued"` added to `PersonaStatusValue` — surfaced when a build has been accepted but a worker has not picked it up yet.
+- New exported type `PersonaSummaryReadiness`.
+
+### Changed
+- **Breaking** `PersonaSummary.persona_built_at` is now `string | null` (was `string`). Legacy summary rows that predate the platform migration which began capturing this value at INSERT time return `null`; skip the staleness comparison when null.
+
 ## [0.5.1]
 
 ### Removed

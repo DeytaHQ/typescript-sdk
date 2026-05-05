@@ -104,7 +104,13 @@ export class Personas {
     return this.http.post<BuildAccepted>(`/personas/${seg(id)}/build`, input ?? {}, opts);
   }
 
-  /** Read the current build state — `building`, `ready`, or `not_built`. */
+  /**
+   * Read the current build state — `queued`, `building`, `ready`, or
+   * `not_built`. The response also carries a `summary` readiness block, so
+   * callers can detect whether a persona summary exists without a separate
+   * `getSummary()` round-trip (which would 404 when none has been
+   * generated yet).
+   */
   async status(id: string, opts?: RequestOptions): Promise<PersonaBuildStatus> {
     return this.http.get<PersonaBuildStatus>(`/personas/${seg(id)}/status`, opts);
   }

@@ -191,17 +191,41 @@ describe("Personas", () => {
     });
   });
 
-  test("status GETs /personas/:id/status", async () => {
+  test("status GETs /personas/:id/status and surfaces the summary readiness block", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonOk({
         status: "ready" as const,
         last_built_at: "2026-04-27T01:00:00Z",
+        summary: {
+          available: true,
+          generated_at: "2026-04-27T02:00:00Z",
+          persona_built_at: "2026-04-27T01:00:00Z",
+        },
       }),
     );
     const result = await deyta.personas.status("agt_1");
     expect(result.status).toBe("ready");
+    expect(result.summary.available).toBe(true);
+    expect(result.summary.generated_at).toBe("2026-04-27T02:00:00Z");
+    expect(result.summary.persona_built_at).toBe("2026-04-27T01:00:00Z");
     expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1\/status$/);
+  });
+
+  test("status accepts queued state and an empty summary readiness block", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({
+        status: "queued" as const,
+        last_built_at: null,
+        summary: { available: false, generated_at: null, persona_built_at: null },
+      }),
+    );
+    const result = await deyta.personas.status("agt_1");
+    expect(result.status).toBe("queued");
+    expect(result.summary.available).toBe(false);
+    expect(result.summary.generated_at).toBeNull();
+    expect(result.summary.persona_built_at).toBeNull();
   });
 
   test("get surfaces 404 as DeytaError NOT_FOUND", async () => {
@@ -225,6 +249,19 @@ describe("Personas", () => {
     expect(result.persona_built_at).toBe("2026-04-23T14:00:00.000Z");
     expect(mock.requests[0]?.method).toBe("GET");
     expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_1\/summary$/);
+  });
+
+  test("getSummary surfaces a null persona_built_at on legacy rows", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({
+        summary: "Legacy row predating the build-timestamp migration",
+        generated_at: "2025-12-01T00:00:00.000Z",
+        persona_built_at: null,
+      }),
+    );
+    const result = await deyta.personas.getSummary("agt_1");
+    expect(result.persona_built_at).toBeNull();
   });
 
   test("getSummary surfaces 404 as DeytaError NOT_FOUND", async () => {
