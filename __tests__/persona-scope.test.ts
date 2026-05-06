@@ -68,11 +68,20 @@ describe("personas.scope(id)", () => {
   test("status() GETs /personas/:id/status", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
-      jsonOk({ status: "ready" as const, last_built_at: "2026-04-27T01:00:00Z" }),
+      jsonOk({
+        status: "ready" as const,
+        last_built_at: "2026-04-27T01:00:00Z",
+        summary: {
+          available: true,
+          generated_at: "2026-04-27T02:00:00Z",
+          persona_built_at: "2026-04-27T01:00:00Z",
+        },
+      }),
     );
     const p = deyta.personas.scope("agt_42");
     const s = await p.status();
     expect(s.status).toBe("ready");
+    expect(s.summary.available).toBe(true);
     expect(mock.requests[0]?.url).toMatch(/\/personas\/agt_42\/status$/);
   });
 
@@ -244,7 +253,11 @@ describe("personas.scopeByExternalRef(ref)", () => {
           personaPayload({ id: "agt_77", external_reference_id: "user-abc" }),
         );
       }
-      return jsonOk({ status: "ready" as const, last_built_at: null });
+      return jsonOk({
+        status: "ready" as const,
+        last_built_at: null,
+        summary: { available: false, generated_at: null, persona_built_at: null },
+      });
     });
     const p = deyta.personas.scopeByExternalRef("user-abc");
     await p.status();

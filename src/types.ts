@@ -302,11 +302,40 @@ export type PersonaResponse =
   | (Persona & { built: false })
   | (Persona & { built: true } & ComposedPersona);
 
-export type PersonaStatusValue = "building" | "ready" | "not_built";
+export type PersonaStatusValue = "queued" | "building" | "ready" | "not_built";
+
+/**
+ * Readiness signal for the persisted persona summary, embedded in
+ * `PersonaBuildStatus.summary`. Lets callers check whether a summary exists
+ * without making a separate `getSummary()` call (which would throw
+ * `NOT_FOUND` when none has been generated).
+ *
+ * Compute staleness against the persona's current build with
+ * `last_built_at > generated_at`; skip the comparison when either side is
+ * null. `persona_built_at` is null when `available` is false, and also for
+ * legacy summary rows that predate the platform migration which began
+ * capturing this value at INSERT time.
+ */
+export interface PersonaSummaryReadiness {
+  /** `true` when a persisted summary exists for the persona. */
+  available: boolean;
+  /** ISO-8601 datetime when the summary was generated. Null when `available` is false. */
+  generated_at: string | null;
+  /**
+   * ISO-8601 datetime of the persona's last build at the time the summary
+   * was inserted. Null when `available` is false, or for legacy summary
+   * rows that predate the platform migration.
+   */
+  persona_built_at: string | null;
+}
 
 export interface PersonaBuildStatus {
   status: PersonaStatusValue;
   last_built_at: string | null;
+  /** Readiness of the persisted persona summary. */
+  summary: PersonaSummaryReadiness;
+  /** Populated only when `status()` is called with `?details=true`. */
+  build_progress?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -353,15 +382,20 @@ export interface ListPersonasParams {
 /**
  * Persisted persona summary record. Returned by both
  * `GET /personas/:id/summary` (read) and `POST /personas/:id/summary`
- * (regenerate). Compute staleness as `persona_built_at > generated_at`.
+ * (regenerate). Compute staleness as `persona_built_at > generated_at` —
+ * skip the comparison when `persona_built_at` is null.
  */
 export interface PersonaSummary {
   /** The post-scratchpad profile prose. */
   summary: string;
   /** ISO-8601 datetime when this summary was generated. */
   generated_at: string;
-  /** ISO-8601 datetime of the persona's last build at read time. */
-  persona_built_at: string;
+  /**
+   * ISO-8601 datetime of the persona's last build at the time the summary
+   * was inserted. Null for legacy summary rows that predate the platform
+   * migration which began capturing this value at INSERT time.
+   */
+  persona_built_at: string | null;
   [key: string]: unknown;
 }
 
