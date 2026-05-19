@@ -34,8 +34,11 @@ await runSmoke("memory", async () => {
       mode: "hybrid",
     });
     if (Array.isArray(recalled?.chunks)) {
+      console.log("  documents:", recalled.documents.length);
       console.log("  chunks:", recalled.chunks.length);
       console.log("  entities:", recalled.entities.length);
+      console.log("  relationships:", recalled.relationships.length);
+      console.log("  engine:", recalled.engine_info?.engine);
       console.log("  context preview:", recalled.context_text.slice(0, 120));
     } else {
       console.warn("  ⚠ no `chunks` array on recall response — gateway shape may have drifted from RecallResult");

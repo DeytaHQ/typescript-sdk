@@ -6,6 +6,32 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0]
+
+### Added
+- **`RememberInput` provenance kwargs** — `source_type`, `source_name`, `source_url`. Mirrors Khora's new `remember()` / `remember_batch()` kwargs (PRD-17). `source` stays the connector URI; `source_url` is the link-back URL.
+- New top-level `documents: DocumentProjection[]` on `RecallResult` — deduplicated document attribution. Chunks/entities/relationships reference documents by `document_id`.
+- New top-level `relationships: RecallRelationship[]` on `RecallResult`.
+- New top-level `engine_info: EngineInfo` on `RecallResult` (engine, mode, channels_used, rrf_k, temporal_signal, abstention_signals). Only `engine` is guaranteed.
+- New typed exports: `DocumentProjection`, `RecallRelationship`, `RecallUsageEvent`, `EngineInfo`.
+- `RecallChunk.created_at`, `RecallChunk.occurred_at` (nullable), `RecallChunk.connected_entity_ids`, `RecallChunk.chunker_info`.
+- `RecallEntity.attributes`, `RecallEntity.mention_count`, `RecallEntity.source_document_ids`, `RecallEntity.source_chunk_ids`.
+- `AskSource.source_name`, `AskSource.source_url`, `AskSource.external_id`, `AskSource.content_type`, `AskSource.metadata`.
+
+### Changed
+- **Breaking** `RecallResult.llm_usage` renamed to `RecallResult.usage` (typed `RecallUsageEvent[]` instead of `Array<Record<string, unknown>>`).
+- **Breaking** `RecallChunk` no longer inlines a `source` document — look up the document by `document_id` in the new top-level `documents[]`. The colliding `metadata` bucket is gone; chunker-internal info lives under `chunker_info` and doc-level metadata lives on the document.
+- **Breaking** `RecallEntity.source_documents: RecallSourceDocument[]` replaced by `source_document_ids: string[]` plus `source_chunk_ids: string[]`.
+- **Breaking** `AskSource` is no longer an alias of `RecallSourceDocument`. Defined explicitly because the gateway emits it from a different code path (recall vs ask shapes have historically drifted).
+- **Breaking** Loose `[key: string]: unknown` index signatures dropped from `RecallChunk`, `RecallEntity`, `RecallResult`, `AskSource`, `AskUsage`, `AskTiming`, `AskCostEvent`, `AskResult`. Console Gateway is moving to `additionalProperties: false`; the SDK tracks that.
+- `DocumentProjection` (formerly `RecallSourceDocument`) gains required `external_id`, `source_name`, `source_url`, `content_type`, `metadata` fields. All are nullable where appropriate.
+
+### Deprecated
+- `RecallSourceDocument` — aliased to `DocumentProjection` for one minor cycle, then dropped.
+
+### Notes
+- Aligned with Khora PRD-17 (Khora Recall response format). Requires Console Gateway to ship the new strict schema; release coordinated with the upstream cut.
+
 ## [0.5.2]
 
 ### Added

@@ -159,10 +159,13 @@ describe("personas.scope(id)", () => {
       return jsonOk({
         query: "x",
         namespace_id: "ns_99",
+        documents: [],
         chunks: [],
         entities: [],
+        relationships: [],
         context_text: "",
-        llm_usage: [],
+        usage: [],
+        engine_info: { engine: "vectorcypher" },
       });
     });
     const p = deyta.personas.scope("agt_42");

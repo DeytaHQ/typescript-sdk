@@ -74,7 +74,14 @@ export interface TimeRange {
 export type RememberInput = NamespaceTarget & {
   content: string;
   title?: string;
+  /** Connector URI of the originating source (e.g. `nango://linear/issues`). */
   source?: string;
+  /** Transport class — `"connection"`, `"api"`, `"file"`, etc. */
+  source_type?: string;
+  /** Human-readable source name (e.g. `"linear"`, `"slack"`). */
+  source_name?: string;
+  /** Link-back URL to the original document. */
+  source_url?: string;
   metadata?: Record<string, unknown>;
   ontology_id?: string;
 };
@@ -95,16 +102,35 @@ export type RecallInput = NamespaceTarget &
     mode?: RecallMode;
   };
 
-/** Source document referenced by a recall chunk or entity. */
-export interface RecallSourceDocument {
+/**
+ * Document projection surfaced in a recall response. Lives at the top level
+ * (`recall.documents[]`) and is referenced from chunks/entities/relationships
+ * by `document_id`.
+ */
+export interface DocumentProjection {
   id: string;
-  source_type: string;
   created_at: string;
+  /** Transport class — `"connection"`, `"api"`, `"file"`, etc. */
+  source_type: string;
   title: string;
+  /** Stable external identifier from the upstream system. */
+  external_id: string | null;
+  /** Connector URI of the originating source (e.g. `nango://linear/issues`). */
   source: string;
+  /** Human-readable source name (e.g. `"linear"`, `"slack"`). */
+  source_name: string | null;
+  /** Link-back URL to the original document. */
+  source_url: string | null;
+  content_type: string | null;
   source_timestamp: string | null;
-  [key: string]: unknown;
+  metadata: Record<string, unknown>;
 }
+
+/**
+ * @deprecated Renamed to `DocumentProjection`. Kept as an alias for one minor
+ * release; switch to `DocumentProjection`.
+ */
+export type RecallSourceDocument = DocumentProjection;
 
 /** Chunk-shaped match returned in the `chunks` array of a recall response. */
 export interface RecallChunk {
@@ -112,9 +138,12 @@ export interface RecallChunk {
   document_id: string;
   content: string;
   score: number;
-  source: RecallSourceDocument;
-  metadata: Record<string, unknown>;
-  [key: string]: unknown;
+  /** Chunk write time. */
+  created_at: string;
+  /** Domain event time the chunk describes; null when unknown. */
+  occurred_at: string | null;
+  connected_entity_ids: string[];
+  chunker_info: Record<string, unknown>;
 }
 
 /** Entity-shaped match returned in the `entities` array of a recall response. */
@@ -122,20 +151,57 @@ export interface RecallEntity {
   id: string;
   name: string;
   entity_type: string;
-  score: number;
   description: string;
-  source_documents: RecallSourceDocument[];
-  [key: string]: unknown;
+  score: number;
+  attributes: Record<string, unknown>;
+  mention_count: number;
+  source_document_ids: string[];
+  source_chunk_ids: string[];
+}
+
+/** Relationship match returned in the `relationships` array of a recall response. */
+export interface RecallRelationship {
+  id: string;
+  source_entity_id: string;
+  target_entity_id: string;
+  relationship_type: string;
+  description: string;
+  score: number;
+  valid_from: string | null;
+  valid_until: string | null;
+  source_document_ids: string[];
+}
+
+export interface RecallUsageEvent {
+  operation: string;
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  latency_ms: number;
+  batch_size: number;
+}
+
+export interface EngineInfo {
+  /** Engine that produced the response (guaranteed on every code path). */
+  engine: string;
+  mode?: string;
+  channels_used?: string[];
+  rrf_k?: number;
+  temporal_signal?: Record<string, unknown>;
+  abstention_signals?: Record<string, unknown>;
 }
 
 export interface RecallResult {
   query: string;
   namespace_id: string;
+  documents: DocumentProjection[];
   chunks: RecallChunk[];
   entities: RecallEntity[];
+  relationships: RecallRelationship[];
   context_text: string;
-  llm_usage: Array<Record<string, unknown>>;
-  [key: string]: unknown;
+  usage: RecallUsageEvent[];
+  engine_info: EngineInfo;
 }
 
 export type ForgetInput = NamespaceTarget & {
@@ -166,8 +232,24 @@ export type AskInput = NamespaceTarget &
 // into this compact non-streaming object. Consumers no longer need to walk
 // events or reconstruct the answer themselves.
 
-/** A memory cited as a source for the answer. */
-export type AskSource = RecallSourceDocument;
+/**
+ * A memory cited as a source for the answer. Mirrors `DocumentProjection`
+ * but is defined separately because the gateway emits it from a different
+ * code path and the shapes have historically drifted.
+ */
+export interface AskSource {
+  id: string;
+  title: string;
+  source: string;
+  source_type: string;
+  source_name: string | null;
+  source_url: string | null;
+  external_id: string | null;
+  content_type: string | null;
+  created_at: string;
+  source_timestamp: string | null;
+  metadata: Record<string, unknown>;
+}
 
 /** Per-source token + request counters (one entry per upstream call). */
 export interface AskCostEvent {
@@ -183,7 +265,6 @@ export interface AskCostEvent {
   total_tokens: number;
   /** ISO-8601 timestamp. */
   timestamp: string;
-  [key: string]: unknown;
 }
 
 /** Aggregated token + request counts for the entire ask invocation. */
@@ -196,7 +277,6 @@ export interface AskUsage {
   requests: number;
   /** Per-source breakdown of the aggregated counts above. */
   by_source: AskCostEvent[];
-  [key: string]: unknown;
 }
 
 export interface AskTiming {
@@ -206,7 +286,6 @@ export interface AskTiming {
   finished_at: string;
   /** End-to-end gateway-side duration in milliseconds. */
   duration_ms: number;
-  [key: string]: unknown;
 }
 
 /**
@@ -226,7 +305,6 @@ export interface AskResult {
   sources: AskSource[];
   usage: AskUsage;
   timing: AskTiming;
-  [key: string]: unknown;
 }
 
 // ── Namespaces ──────────────────────────────────────────────────────

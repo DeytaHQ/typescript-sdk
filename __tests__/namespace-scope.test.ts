@@ -48,10 +48,13 @@ describe("namespaces.scope(id)", () => {
       jsonOk({
         query: "x",
         namespace_id: "ns_42",
+        documents: [],
         chunks: [],
         entities: [],
+        relationships: [],
         context_text: "",
-        llm_usage: [],
+        usage: [],
+        engine_info: { engine: "vectorcypher" },
       }),
     );
     const ns = deyta.namespaces.scope("ns_42");
