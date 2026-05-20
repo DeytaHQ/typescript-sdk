@@ -74,11 +74,11 @@ export interface TimeRange {
 export type RememberInput = NamespaceTarget & {
   content: string;
   title?: string;
-  /** Connector URI of the originating source (e.g. `nango://linear/issues`). */
+  /** Connector URI of the originating source (e.g. `nango://<provider>/<resource>`). */
   source?: string;
   /** Transport class — `"connection"`, `"api"`, `"file"`, etc. */
   source_type?: string;
-  /** Human-readable source name (e.g. `"linear"`, `"slack"`). */
+  /** Human-readable source name (the upstream provider). */
   source_name?: string;
   /** Link-back URL to the original document. */
   source_url?: string;
@@ -115,9 +115,9 @@ export interface DocumentProjection {
   title: string;
   /** Stable external identifier from the upstream system. */
   external_id: string | null;
-  /** Connector URI of the originating source (e.g. `nango://linear/issues`). */
+  /** Connector URI of the originating source (e.g. `nango://<provider>/<resource>`). */
   source: string;
-  /** Human-readable source name (e.g. `"linear"`, `"slack"`). */
+  /** Human-readable source name (the upstream provider). */
   source_name: string | null;
   /** Link-back URL to the original document. */
   source_url: string | null;

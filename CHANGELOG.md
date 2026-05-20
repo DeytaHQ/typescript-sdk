@@ -9,7 +9,7 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 ## [0.6.0]
 
 ### Added
-- **`RememberInput` provenance kwargs** — `source_type`, `source_name`, `source_url`. Mirrors Khora's new `remember()` / `remember_batch()` kwargs (PRD-17). `source` stays the connector URI; `source_url` is the link-back URL.
+- **`RememberInput` provenance kwargs** — `source_type`, `source_name`, `source_url`. Mirrors Khora's new `remember()` / `remember_batch()` kwargs. `source` stays the connector URI; `source_url` is the link-back URL.
 - New top-level `documents: DocumentProjection[]` on `RecallResult` — deduplicated document attribution. Chunks/entities/relationships reference documents by `document_id`.
 - New top-level `relationships: RecallRelationship[]` on `RecallResult`.
 - New top-level `engine_info: EngineInfo` on `RecallResult` (engine, mode, channels_used, rrf_k, temporal_signal, abstention_signals). Only `engine` is guaranteed.
@@ -30,7 +30,7 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 - `RecallSourceDocument` — aliased to `DocumentProjection` for one minor cycle, then dropped.
 
 ### Notes
-- Aligned with Khora PRD-17 (Khora Recall response format). Requires Console Gateway to ship the new strict schema; release coordinated with the upstream cut.
+- Aligned with the new Khora recall response format. Requires Console Gateway to ship the new strict schema; release coordinated with the upstream cut.
 
 ## [0.5.2]
 
