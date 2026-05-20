@@ -107,7 +107,8 @@ const result = await deyta.memory.recall({
   from: new Date("2026-04-01T00:00:00Z"),      // Optional inclusive lower bound on event time
   until: "2026-04-30T23:59:59Z",               // Optional inclusive upper bound (Date | ISO string)
 });
-// result: { query, namespace_id, documents, chunks, entities, relationships, context_text, usage, engine_info }
+// result: { query, namespace_id, documents, chunks, entities, relationships, usage, engine_info? }
+// Pass `verbose: true` to include the optional `engine_info` diagnostic blob.
 ```
 
 `from` and `until` accept either a `Date` or an ISO-8601 string. The SDK serializes them to the wire format expected by the API.

@@ -52,9 +52,7 @@ describe("namespaces.scope(id)", () => {
         chunks: [],
         entities: [],
         relationships: [],
-        context_text: "",
         usage: [],
-        engine_info: { engine: "vectorcypher" },
       }),
     );
     const ns = deyta.namespaces.scope("ns_42");

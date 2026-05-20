@@ -163,9 +163,7 @@ describe("personas.scope(id)", () => {
         chunks: [],
         entities: [],
         relationships: [],
-        context_text: "",
         usage: [],
-        engine_info: { engine: "vectorcypher" },
       });
     });
     const p = deyta.personas.scope("agt_42");

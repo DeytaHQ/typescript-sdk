@@ -51,9 +51,7 @@ describe("Memory.recall", () => {
         chunks: [],
         entities: [],
         relationships: [],
-        context_text: "",
         usage: [],
-        engine_info: { engine: "vectorcypher" },
       }),
     );
     const from = new Date("2026-04-01T00:00:00.000Z");
@@ -81,9 +79,7 @@ describe("Memory.recall", () => {
         chunks: [],
         entities: [],
         relationships: [],
-        context_text: "",
         usage: [],
-        engine_info: { engine: "vectorcypher" },
       }),
     );
     await deyta.memory.recall({
@@ -131,9 +127,7 @@ describe("Memory.recall", () => {
         ],
         entities: [],
         relationships: [],
-        context_text: "a",
         usage: [],
-        engine_info: { engine: "vectorcypher" },
       }),
     );
     const result = await deyta.memory.recall({
@@ -141,7 +135,8 @@ describe("Memory.recall", () => {
       query: "anything",
     });
     expect(result.chunks.length).toBe(1);
-    expect(result.context_text).toBe("a");
+    expect(result.documents.length).toBe(1);
+    expect(result.documents[0]?.id).toBe("d1");
     const body = mock.requests[0]?.body as Record<string, unknown>;
     expect(body.external_reference_id).toBe("user-abc");
   });
@@ -166,7 +161,6 @@ describe("Memory.ask", () => {
             content_type: "text/plain",
             created_at: "2026-04-23T14:00:00Z",
             source_timestamp: null,
-            metadata: {},
           },
         ],
         usage: {

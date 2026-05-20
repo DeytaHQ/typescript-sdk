@@ -100,6 +100,11 @@ export type RecallInput = NamespaceTarget &
     query: string;
     limit?: number;
     mode?: RecallMode;
+    /**
+     * When true, the response includes the operator-owned `engine_info`
+     * diagnostic blob. Defaults to false.
+     */
+    verbose?: boolean;
   };
 
 /**
@@ -110,13 +115,13 @@ export type RecallInput = NamespaceTarget &
 export interface DocumentProjection {
   id: string;
   created_at: string;
-  /** Transport class — `"connection"`, `"api"`, `"file"`, etc. */
+  /** Free-form source category — `"connection"`, `"api"`, `"library"`, etc. */
   source_type: string;
-  title: string;
+  title: string | null;
   /** Stable external identifier from the upstream system. */
   external_id: string | null;
   /** Connector URI of the originating source (e.g. `nango://<provider>/<resource>`). */
-  source: string;
+  source: string | null;
   /** Human-readable source name (the upstream provider). */
   source_name: string | null;
   /** Link-back URL to the original document. */
@@ -173,24 +178,21 @@ export interface RecallRelationship {
 }
 
 export interface RecallUsageEvent {
-  operation: string;
   model: string;
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
-  latency_ms: number;
-  batch_size: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  requests: number;
 }
 
-export interface EngineInfo {
-  /** Engine that produced the response (guaranteed on every code path). */
-  engine: string;
-  mode?: string;
-  channels_used?: string[];
-  rrf_k?: number;
-  temporal_signal?: Record<string, unknown>;
-  abstention_signals?: Record<string, unknown>;
-}
+/**
+ * Operator-owned diagnostic blob. Permissive shape — content varies per
+ * engine. Only present in the response when the recall request set
+ * `verbose: true`.
+ */
+export type EngineInfo = Record<string, unknown>;
 
 export interface RecallResult {
   query: string;
@@ -199,9 +201,9 @@ export interface RecallResult {
   chunks: RecallChunk[];
   entities: RecallEntity[];
   relationships: RecallRelationship[];
-  context_text: string;
   usage: RecallUsageEvent[];
-  engine_info: EngineInfo;
+  /** Only present when the request set `verbose: true`. */
+  engine_info?: EngineInfo;
 }
 
 export type ForgetInput = NamespaceTarget & {
@@ -224,6 +226,8 @@ export type AskInput = NamespaceTarget &
   TimeRange & {
     query: string;
     config?: AskConfig;
+    /** When true, request verbose upstream diagnostics. Defaults to false. */
+    verbose?: boolean;
   };
 
 // ── Ask response ────────────────────────────────────────────────────
@@ -239,8 +243,8 @@ export type AskInput = NamespaceTarget &
  */
 export interface AskSource {
   id: string;
-  title: string;
-  source: string;
+  title: string | null;
+  source: string | null;
   source_type: string;
   source_name: string | null;
   source_url: string | null;
@@ -248,7 +252,6 @@ export interface AskSource {
   content_type: string | null;
   created_at: string;
   source_timestamp: string | null;
-  metadata: Record<string, unknown>;
 }
 
 /** Per-source token + request counters (one entry per upstream call). */
