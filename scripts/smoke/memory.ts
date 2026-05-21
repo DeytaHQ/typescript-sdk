@@ -26,20 +26,25 @@ await runSmoke("memory", async () => {
     console.log("  document_id:", remembered.document_id);
     console.log("  chunks/entities/rels:", remembered.chunks_created, remembered.entities_extracted, remembered.relationships_created);
 
-    step("recall (hybrid)");
+    step("recall (hybrid, verbose for engine_info)");
     const recalled = await deyta.memory.recall({
       namespace_id: ns.id,
       query: "when is standup?",
       limit: 3,
       mode: "hybrid",
+      verbose: true,
     });
-    if (Array.isArray(recalled?.chunks)) {
-      console.log("  chunks:", recalled.chunks.length);
-      console.log("  entities:", recalled.entities.length);
-      console.log("  context preview:", recalled.context_text.slice(0, 120));
-    } else {
-      console.warn("  ⚠ no `chunks` array on recall response — gateway shape may have drifted from RecallResult");
-      console.warn("  raw recall response:", preview(recalled));
+    console.log("  documents:", recalled.documents.length);
+    console.log("  chunks:", recalled.chunks.length);
+    console.log("  entities:", recalled.entities.length);
+    console.log("  relationships:", recalled.relationships.length);
+    console.log("  usage events:", recalled.usage.length);
+    console.log("  engine_info present:", recalled.engine_info !== undefined);
+    if (recalled.chunks.length > 0) {
+      const firstChunk = recalled.chunks[0]!;
+      const firstDoc = recalled.documents.find((d) => d.id === firstChunk.document_id);
+      console.log("  first chunk preview:", firstChunk.content.slice(0, 120));
+      console.log("  first chunk doc:", firstDoc?.title, "→", firstDoc?.source_url);
     }
 
     step("ask");
