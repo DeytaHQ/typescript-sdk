@@ -47,10 +47,11 @@ describe("Memory.recall", () => {
       jsonOk({
         query: "meetings",
         namespace_id: "ns_1",
+        documents: [],
         chunks: [],
         entities: [],
-        context_text: "",
-        llm_usage: [],
+        relationships: [],
+        usage: [],
       }),
     );
     const from = new Date("2026-04-01T00:00:00.000Z");
@@ -74,10 +75,11 @@ describe("Memory.recall", () => {
       jsonOk({
         query: "meetings",
         namespace_id: "ns_1",
+        documents: [],
         chunks: [],
         entities: [],
-        context_text: "",
-        llm_usage: [],
+        relationships: [],
+        usage: [],
       }),
     );
     await deyta.memory.recall({
@@ -96,26 +98,36 @@ describe("Memory.recall", () => {
       jsonOk({
         query: "anything",
         namespace_id: "ns_1",
+        documents: [
+          {
+            id: "d1",
+            source_type: "api",
+            created_at: "2026-04-01T00:00:00Z",
+            title: "t",
+            external_id: null,
+            source: "s",
+            source_name: null,
+            source_url: null,
+            content_type: null,
+            source_timestamp: "2026-04-01T00:00:00Z",
+            metadata: {},
+          },
+        ],
         chunks: [
           {
             id: "c1",
             document_id: "d1",
             content: "a",
             score: 0.9,
-            source: {
-              id: "d1",
-              source_type: "api",
-              created_at: "2026-04-01T00:00:00Z",
-              title: "t",
-              source: "s",
-              source_timestamp: "2026-04-01T00:00:00Z",
-            },
-            metadata: {},
+            created_at: "2026-04-01T00:00:00Z",
+            occurred_at: "2026-04-01T00:00:00Z",
+            connected_entity_ids: [],
+            chunker_info: { chunker: "semantic" },
           },
         ],
         entities: [],
-        context_text: "a",
-        llm_usage: [],
+        relationships: [],
+        usage: [],
       }),
     );
     const result = await deyta.memory.recall({
@@ -123,7 +135,8 @@ describe("Memory.recall", () => {
       query: "anything",
     });
     expect(result.chunks.length).toBe(1);
-    expect(result.context_text).toBe("a");
+    expect(result.documents.length).toBe(1);
+    expect(result.documents[0]?.id).toBe("d1");
     const body = mock.requests[0]?.body as Record<string, unknown>;
     expect(body.external_reference_id).toBe("user-abc");
   });
@@ -141,7 +154,11 @@ describe("Memory.ask", () => {
             id: "doc_1",
             title: "Release notes",
             source: "nango://granola/transcripts",
-            source_type: "api",
+            source_type: "connection",
+            source_name: "granola",
+            source_url: "https://granola.so/notes/abc",
+            external_id: "abc",
+            content_type: "text/plain",
             created_at: "2026-04-23T14:00:00Z",
             source_timestamp: null,
           },

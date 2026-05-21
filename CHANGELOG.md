@@ -6,6 +6,34 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0]
+
+### Added
+- **`RememberInput` provenance kwargs** — `source_type`, `source_name`, `source_url`. Mirrors the gateway's new `remember()` signature. `source` stays the connector URI; `source_url` is the link-back URL.
+- New top-level `documents: DocumentProjection[]` on `RecallResult` — deduplicated document attribution. Chunks/entities/relationships reference documents by `document_id` / `source_document_ids`.
+- New top-level `relationships: RecallRelationship[]` on `RecallResult`.
+- Optional top-level `engine_info?: EngineInfo` on `RecallResult` — operator-owned diagnostic blob. Permissive shape (`Record<string, unknown>`); present only when the request set `verbose: true`.
+- New `verbose?: boolean` field on `RecallInput` and `AskInput`. Defaults to `false`; set to `true` to include `engine_info` in the response.
+- New typed exports: `DocumentProjection`, `RecallRelationship`, `RecallUsageEvent`, `EngineInfo`.
+- `RecallChunk.created_at`, `RecallChunk.occurred_at` (nullable), `RecallChunk.connected_entity_ids`, `RecallChunk.chunker_info`.
+- `RecallEntity.attributes`, `RecallEntity.mention_count`, `RecallEntity.source_document_ids`, `RecallEntity.source_chunk_ids`.
+- `AskSource.source_name`, `AskSource.source_url`, `AskSource.external_id`, `AskSource.content_type`.
+
+### Changed
+- **Breaking** `RecallResult.context_text` removed. The gateway no longer pre-concatenates chunk content; rebuild client-side from `chunks[i].content` if you need it.
+- **Breaking** `RecallResult.llm_usage` renamed to `RecallResult.usage`. Per-entry shape is now `{ model, prompt_tokens, completion_tokens, total_tokens, cache_read_tokens, cache_write_tokens, requests }` (the previous loose `Record<string, unknown>` is gone).
+- **Breaking** `RecallChunk` no longer inlines a `source` document — look up the document by `document_id` in the new top-level `documents[]`. The colliding `metadata` bucket is gone; chunker-internal info lives under `chunker_info` and doc-level metadata lives on the document.
+- **Breaking** `RecallEntity.source_documents: RecallSourceDocument[]` replaced by `source_document_ids: string[]` plus `source_chunk_ids: string[]`.
+- **Breaking** `AskSource` is no longer an alias of `RecallSourceDocument`. Defined explicitly because the gateway emits it from a different code path. `title` and `source` are now `string | null`.
+- **Breaking** Loose `[key: string]: unknown` index signatures dropped from `RecallChunk`, `RecallEntity`, `RecallResult`, `AskSource`, `AskUsage`, `AskTiming`, `AskCostEvent`, `AskResult`. Console Gateway responses now run through a strict `additionalProperties: false` validator.
+- `DocumentProjection` (formerly `RecallSourceDocument`) gains `external_id`, `source_name`, `source_url`, `content_type`, `metadata`. `title` and `source` are nullable per the gateway schema.
+
+### Deprecated
+- `RecallSourceDocument` — aliased to `DocumentProjection` for one minor cycle, then dropped.
+
+### Notes
+- Aligned with the deployed Console Gateway v2.0.0 contract (canonical recall response, no dual-write window).
+
 ## [0.5.2]
 
 ### Added
