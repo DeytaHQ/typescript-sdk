@@ -16,6 +16,7 @@ export {
   PersonaScope,
   PersonaIntegrationsScope,
 } from "./resources/persona-scope.js";
+export { REMEMBER_BATCH_MAX_DOCUMENTS } from "./resources/memory.js";
 export { SDK_VERSION } from "./version.js";
 export type {
   // Response envelopes
@@ -35,8 +36,12 @@ export type {
   TimeRange,
 
   // Memory
+  RememberDocumentInput,
   RememberInput,
   RememberResult,
+  RememberBatchDocument,
+  RememberBatchInput,
+  RememberBatchResult,
   RecallInput,
   RecallMode,
   RecallChunk,

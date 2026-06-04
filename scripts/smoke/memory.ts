@@ -26,6 +26,25 @@ await runSmoke("memory", async () => {
     console.log("  document_id:", remembered.document_id);
     console.log("  chunks/entities/rels:", remembered.chunks_created, remembered.entities_extracted, remembered.relationships_created);
 
+    step("rememberBatch (3 documents)");
+    const batch = await deyta.memory.rememberBatch({
+      namespace_id: ns.id,
+      documents: [
+        { content: "The release retro is on Fridays at 3pm UTC.", title: "Release retro" },
+        { content: "Deploys are frozen during the last week of each quarter." },
+        { content: "On-call rotation hands off Mondays at 9am.", external_document_id: "oncall-handoff" },
+      ],
+    });
+    console.log(
+      "  total/processed/skipped/failed:",
+      batch.total,
+      batch.processed,
+      batch.skipped,
+      batch.failed,
+    );
+    console.log("  chunks/entities/rels:", batch.chunks_created, batch.entities_extracted, batch.relationships_created);
+    if (batch.failed > 0) console.warn(`  ⚠ ${batch.failed}/${batch.total} documents failed`);
+
     step("recall (hybrid, verbose for engine_info)");
     const recalled = await deyta.memory.recall({
       namespace_id: ns.id,

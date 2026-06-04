@@ -71,25 +71,91 @@ export interface TimeRange {
 
 // ── Memory ──────────────────────────────────────────────────────────
 
-export type RememberInput = NamespaceTarget & {
+/**
+ * The document body shared by the single `remember` call and each entry of a
+ * batch import (`rememberBatch`). Namespace targeting and ontology are set once
+ * — per call for `remember`, per batch for `rememberBatch` — so they are not
+ * part of this shape.
+ */
+export interface RememberDocumentInput {
   content: string;
   title?: string;
   /** Connector URI of the originating source (e.g. `nango://<provider>/<resource>`). */
   source?: string;
-  /** Transport class — `"connection"`, `"api"`, `"file"`, etc. */
-  source_type?: string;
   /** Human-readable source name (the upstream provider). */
   source_name?: string;
   /** Link-back URL to the original document. */
   source_url?: string;
   metadata?: Record<string, unknown>;
-  ontology_id?: string;
-};
+}
+
+export type RememberInput = NamespaceTarget &
+  RememberDocumentInput & {
+    /** Transport class — `"connection"`, `"api"`, `"file"`, etc. */
+    source_type?: string;
+    ontology_id?: string;
+  };
 
 export interface RememberResult {
   document_id: string;
   chunks_created: number;
   entities_extracted: number;
+  relationships_created: number;
+}
+
+/**
+ * A single document within a batch import (`memory.rememberBatch`). Extends the
+ * shared {@link RememberDocumentInput} body with batch-only provenance fields.
+ * There is no per-document `ontology_id` — ontology is resolved batch-level via
+ * `RememberBatchInput.ontology_id`.
+ */
+export interface RememberBatchDocument extends RememberDocumentInput {
+  /**
+   * Caller-supplied identifier for this document. Optional, max 512 chars,
+   * non-blank with no leading or trailing whitespace, unique per namespace.
+   * Re-sending the same `external_document_id` replaces the prior document
+   * idempotently.
+   */
+  external_document_id?: string;
+  /**
+   * When the content originally occurred at the source (ISO-8601 string).
+   * Surfaced on recall as `documents[].source_timestamp`.
+   */
+  source_timestamp?: string;
+}
+
+export type RememberBatchInput = NamespaceTarget & {
+  /**
+   * Batch-level ontology ID used for entity extraction across every document
+   * in the batch. Applies to all documents — per-document overrides are not
+   * supported.
+   */
+  ontology_id?: string;
+  /** Documents to import in a single call (1–100). */
+  documents: RememberBatchDocument[];
+};
+
+/**
+ * Aggregate result of a batch import. The gateway returns aggregate stats only
+ * — there is no per-document result list. Partial failure is best-effort: a
+ * document that fails to process is counted in `failed` rather than failing the
+ * whole call (the call still returns successfully). Inspect `failed` (and
+ * `skipped`) to detect that not every document landed.
+ */
+export interface RememberBatchResult {
+  /** Number of documents submitted in the batch. */
+  total: number;
+  /** Number of documents successfully remembered. */
+  processed: number;
+  /** Number of documents skipped (e.g. empty after parsing). */
+  skipped: number;
+  /** Number of documents that failed to process. */
+  failed: number;
+  /** Total chunks created across all processed documents. */
+  chunks_created: number;
+  /** Total entities extracted across all processed documents. */
+  entities_extracted: number;
+  /** Total relationships added to the knowledge graph across the batch. */
   relationships_created: number;
 }
 

@@ -13,6 +13,8 @@ import type {
   NamespaceTarget,
   RecallInput,
   RecallResult,
+  RememberBatchInput,
+  RememberBatchResult,
   RememberInput,
   RememberResult,
   RequestOptions,
@@ -47,6 +49,13 @@ export class NamespaceScope {
     opts?: RequestOptions,
   ): Promise<RememberResult> {
     return this.memory.remember({ ...input, ...this.target } as RememberInput, opts);
+  }
+
+  rememberBatch(
+    input: Omit<RememberBatchInput, keyof NamespaceTarget>,
+    opts?: RequestOptions,
+  ): Promise<RememberBatchResult> {
+    return this.memory.rememberBatch({ ...input, ...this.target } as RememberBatchInput, opts);
   }
 
   recall(

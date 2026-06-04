@@ -96,6 +96,33 @@ const result = await deyta.memory.remember({
 // result: { document_id, chunks_created, entities_extracted, relationships_created }
 ```
 
+### `rememberBatch`
+
+Import up to 100 documents into one namespace in a single call. Each document shares the same fields as `remember` (minus the namespace target and `ontology_id`, which are set once at the batch level), plus optional `external_document_id` and `source_timestamp`.
+
+```ts
+const result = await deyta.memory.rememberBatch({
+  namespace_id: "ns_123",
+  ontology_id: "optional-ontology-id",        // batch-level — applies to every document
+  documents: [
+    { content: "First document", title: "Doc 1" },
+    { content: "Second document", external_document_id: "ext-42" },
+    { content: "Third document", source_timestamp: "2026-04-01T00:00:00Z" },
+  ],
+});
+// result: { total, processed, skipped, failed, chunks_created, entities_extracted, relationships_created }
+```
+
+Accepts 1–100 documents; an empty or oversized array throws `DeytaError("BAD_REQUEST")` before any request is sent (the cap is exported as `REMEMBER_BATCH_MAX_DOCUMENTS`).
+
+The response is **aggregate-only** — there is no per-document result list. Partial failure is best-effort: a document that fails upstream is counted in `failed` and the call still resolves. Inspect `failed` (and `skipped`) to tell whether every document landed:
+
+```ts
+if (result.failed > 0) {
+  console.warn(`${result.failed}/${result.total} documents failed to import`);
+}
+```
+
 ### `recall`
 
 ```ts
@@ -408,6 +435,7 @@ The SDK's timeout and the caller's signal are merged — either can abort the re
 Runnable examples live under [`examples/`](./examples):
 
 - `quickstart.ts` — first end-to-end memory roundtrip
+- `batch-import.ts` — import many documents in one call with `rememberBatch`
 - `namespace-scoped.ts` — using the sub-client pattern
 - `pagination.ts` — manual and async-iterator pagination
 - `error-handling.ts` — typed errors, cancellation, custom retries

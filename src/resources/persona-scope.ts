@@ -20,6 +20,8 @@ import type {
   PersonaTarget,
   RecallInput,
   RecallResult,
+  RememberBatchInput,
+  RememberBatchResult,
   RememberInput,
   RememberResult,
   RequestOptions,
@@ -110,6 +112,15 @@ export class PersonaScope {
   ): Promise<RememberResult> {
     return this.withNamespaceId(opts, (namespace_id) =>
       this.memory.remember({ ...input, namespace_id } as RememberInput, opts),
+    );
+  }
+
+  rememberBatch(
+    input: Omit<RememberBatchInput, keyof NamespaceTarget>,
+    opts?: RequestOptions,
+  ): Promise<RememberBatchResult> {
+    return this.withNamespaceId(opts, (namespace_id) =>
+      this.memory.rememberBatch({ ...input, namespace_id } as RememberBatchInput, opts),
     );
   }
 

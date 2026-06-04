@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { Deyta } from "../src/index.js";
+import { Deyta, DeytaError, REMEMBER_BATCH_MAX_DOCUMENTS } from "../src/index.js";
 import { FetchMock, jsonOk } from "./_fetch-mock.js";
 
 function setup() {
@@ -37,6 +37,103 @@ describe("Memory.remember", () => {
       content: "hello world",
       title: "greeting",
     });
+  });
+});
+
+describe("Memory.rememberBatch", () => {
+  const aggregate = {
+    total: 3,
+    processed: 3,
+    skipped: 0,
+    failed: 0,
+    chunks_created: 12,
+    entities_extracted: 18,
+    relationships_created: 9,
+  };
+
+  test("posts to /remember/batch and types the aggregate result", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => jsonOk(aggregate));
+    const result = await deyta.memory.rememberBatch({
+      namespace_id: "ns_1",
+      ontology_id: "ont_1",
+      documents: [
+        { content: "first", title: "a" },
+        { content: "second", external_document_id: "ext-2" },
+        { content: "third", source_timestamp: "2026-04-01T00:00:00Z" },
+      ],
+    });
+    expect(result).toEqual(aggregate);
+    expect(mock.requests[0]?.url).toMatch(/\/gateway\/v1\/remember\/batch$/);
+    expect(mock.requests[0]?.method).toBe("POST");
+    const body = mock.requests[0]?.body as Record<string, unknown>;
+    expect(body.namespace_id).toBe("ns_1");
+    expect(body.ontology_id).toBe("ont_1");
+    expect(Array.isArray(body.documents)).toBe(true);
+    expect((body.documents as unknown[]).length).toBe(3);
+    expect(body.documents).toMatchObject([
+      { content: "first", title: "a" },
+      { content: "second", external_document_id: "ext-2" },
+      { content: "third", source_timestamp: "2026-04-01T00:00:00Z" },
+    ]);
+  });
+
+  test("surfaces partial failure via the failed/skipped counts (still resolves)", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({
+        total: 3,
+        processed: 1,
+        skipped: 1,
+        failed: 1,
+        chunks_created: 4,
+        entities_extracted: 6,
+        relationships_created: 2,
+      }),
+    );
+    const result = await deyta.memory.rememberBatch({
+      external_reference_id: "user-abc",
+      documents: [{ content: "a" }, { content: "b" }, { content: "c" }],
+    });
+    expect(result.failed).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(result.processed).toBe(1);
+    expect(result.processed + result.skipped + result.failed).toBe(result.total);
+    expect((mock.requests[0]?.body as Record<string, unknown>).external_reference_id).toBe(
+      "user-abc",
+    );
+  });
+
+  test("rejects an empty document array before sending a request", async () => {
+    const { deyta, mock } = setup();
+    await expect(
+      deyta.memory.rememberBatch({ namespace_id: "ns_1", documents: [] }),
+    ).rejects.toMatchObject({ name: "DeytaError", code: "BAD_REQUEST", status: 400 });
+    expect(mock.requests.length).toBe(0);
+  });
+
+  test("rejects more than the max documents before sending a request", async () => {
+    const { deyta, mock } = setup();
+    const documents = Array.from({ length: REMEMBER_BATCH_MAX_DOCUMENTS + 1 }, (_, i) => ({
+      content: `doc ${i}`,
+    }));
+    await expect(deyta.memory.rememberBatch({ namespace_id: "ns_1", documents })).rejects.toBeInstanceOf(
+      DeytaError,
+    );
+    expect(mock.requests.length).toBe(0);
+  });
+
+  test("accepts exactly the max documents", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({ ...aggregate, total: REMEMBER_BATCH_MAX_DOCUMENTS, processed: REMEMBER_BATCH_MAX_DOCUMENTS }),
+    );
+    const documents = Array.from({ length: REMEMBER_BATCH_MAX_DOCUMENTS }, (_, i) => ({
+      content: `doc ${i}`,
+    }));
+    const result = await deyta.memory.rememberBatch({ namespace_id: "ns_1", documents });
+    expect(result.total).toBe(REMEMBER_BATCH_MAX_DOCUMENTS);
+    expect(mock.requests.length).toBe(1);
   });
 });
 

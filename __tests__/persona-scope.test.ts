@@ -150,6 +150,33 @@ describe("personas.scope(id)", () => {
     expect((mock.requests[2]?.body as Record<string, unknown>).namespace_id).toBe("ns_99");
   });
 
+  test("rememberBatch resolves namespace_id via metadata, then injects it", async () => {
+    const { deyta, mock } = setup();
+    let calls = 0;
+    mock.setHandler(() => {
+      calls += 1;
+      if (calls === 1) return jsonOk(personaPayload({ id: "agt_42", namespace_id: "ns_99" }));
+      return jsonOk({
+        total: 2,
+        processed: 2,
+        skipped: 0,
+        failed: 0,
+        chunks_created: 4,
+        entities_extracted: 2,
+        relationships_created: 1,
+      });
+    });
+    const p = deyta.personas.scope("agt_42");
+    const result = await p.rememberBatch({ documents: [{ content: "a" }, { content: "b" }] });
+    expect(result.processed).toBe(2);
+    expect(mock.requests.length).toBe(2);
+    expect(mock.requests[1]?.url).toMatch(/\/remember\/batch$/);
+    const body = mock.requests[1]?.body as Record<string, unknown>;
+    expect(body.namespace_id).toBe("ns_99");
+    expect((body.documents as unknown[]).length).toBe(2);
+    expect(body.external_reference_id).toBeUndefined();
+  });
+
   test("recall preserves time bounds and adds the persona's namespace_id", async () => {
     const { deyta, mock } = setup();
     let calls = 0;

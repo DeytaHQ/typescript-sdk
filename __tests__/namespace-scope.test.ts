@@ -42,6 +42,28 @@ describe("namespaces.scope(id)", () => {
     expect(body.external_reference_id).toBeUndefined();
   });
 
+  test("rememberBatch injects namespace_id into the batch body", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      jsonOk({
+        total: 2,
+        processed: 2,
+        skipped: 0,
+        failed: 0,
+        chunks_created: 5,
+        entities_extracted: 3,
+        relationships_created: 1,
+      }),
+    );
+    const ns = deyta.namespaces.scope("ns_42");
+    await ns.rememberBatch({ documents: [{ content: "a" }, { content: "b" }] });
+    expect(mock.requests[0]?.url).toMatch(/\/remember\/batch$/);
+    const body = mock.requests[0]?.body as Record<string, unknown>;
+    expect(body.namespace_id).toBe("ns_42");
+    expect((body.documents as unknown[]).length).toBe(2);
+    expect(body.external_reference_id).toBeUndefined();
+  });
+
   test("recall preserves time bounds and adds namespace_id", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>

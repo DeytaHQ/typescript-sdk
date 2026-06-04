@@ -6,6 +6,18 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0]
+
+### Added
+- **`memory.rememberBatch(input)`** — batch-import up to 100 documents into one namespace in a single call, wrapping the gateway's new `POST /remember/batch` endpoint. The batch carries one namespace target (`namespace_id` or `external_reference_id`) and an optional batch-level `ontology_id`; each entry is a `RememberBatchDocument`. Returns aggregate stats only — `RememberBatchResult { total, processed, skipped, failed, chunks_created, entities_extracted, relationships_created }` — with no per-document result list. Partial failure is best-effort: a document that fails upstream is counted in `failed` and the call still resolves; inspect `failed` / `skipped` to detect that not every document landed.
+- Client-side validation: an empty or oversized `documents` array throws `DeytaError("BAD_REQUEST")` before any request is sent, mirroring the gateway's 1–100 cap. The cap is exported as the `REMEMBER_BATCH_MAX_DOCUMENTS` constant.
+- `rememberBatch` is also available on the namespace scope (`deyta.namespaces.scope(id).rememberBatch(...)`) and persona scope (`deyta.personas.scope(id).rememberBatch(...)`), with the namespace target injected automatically.
+- New exported types: `RememberDocumentInput` (the document body now shared by `remember` and each batch entry), `RememberBatchDocument`, `RememberBatchInput`, `RememberBatchResult`. New value export: `REMEMBER_BATCH_MAX_DOCUMENTS`.
+- New `examples/batch-import.ts`.
+
+### Notes
+- `RememberInput` is unchanged for callers — it is now composed from the shared `RememberDocumentInput` body plus `source_type` and `ontology_id`. `RememberBatchDocument` adds `external_document_id` and `source_timestamp` and omits `source_type` (not accepted by the batch endpoint); ontology is batch-level only.
+
 ## [0.6.0]
 
 ### Added
