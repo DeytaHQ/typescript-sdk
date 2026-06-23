@@ -63,7 +63,7 @@ describe("Integrations", () => {
     const url = new URL(mock.requests[0]!.url);
     expect(url.searchParams.get("target_type")).toBe("namespace");
     expect(url.searchParams.get("target_id")).toBe("ns_1");
-    expect(url.searchParams.get("target_external_reference_id")).toBeNull();
+    expect(url.searchParams.get("target_external_id")).toBeNull();
   });
 
   test("listConnections forwards page / page_size when provided", async () => {
@@ -82,7 +82,7 @@ describe("Integrations", () => {
     expect(url.searchParams.get("page_size")).toBe("50");
   });
 
-  test("listConnections flattens persona+external_reference_id target", async () => {
+  test("listConnections flattens persona+external_id target", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonPaginated([{ ...conn("conn_1"), persona_id: "agt_1" }], {
@@ -94,11 +94,11 @@ describe("Integrations", () => {
     );
     await deyta.integrations.listConnections({
       type: "persona",
-      external_reference_id: "ref_1",
+      external_id: "ref_1",
     });
     const url = new URL(mock.requests[0]!.url);
     expect(url.searchParams.get("target_type")).toBe("persona");
-    expect(url.searchParams.get("target_external_reference_id")).toBe("ref_1");
+    expect(url.searchParams.get("target_external_id")).toBe("ref_1");
     expect(url.searchParams.get("target_id")).toBeNull();
   });
 
@@ -197,10 +197,10 @@ describe("Integrations", () => {
 
     const listUrl = new URL(mock.requests[0]!.url);
     expect(listUrl.searchParams.get("target_type")).toBe("namespace");
-    expect(listUrl.searchParams.get("target_external_reference_id")).toBe("ref_ns");
+    expect(listUrl.searchParams.get("target_external_id")).toBe("ref_ns");
 
     expect(mock.requests[1]?.body).toEqual({
-      target: { type: "namespace", external_reference_id: "ref_ns" },
+      target: { type: "namespace", external_id: "ref_ns" },
       provider: "notion",
     });
   });

@@ -14,11 +14,9 @@ function setup() {
 
 const namespacePayload = (id: string) => ({
   id,
-  org_id: "org_1",
   name: id,
   description: null,
-  external_reference_id: null,
-  mcp_endpoint_url: `https://mcp/${id}`,
+  external_id: null,
   created_at: "2026-04-26T00:00:00Z",
   updated_at: "2026-04-26T00:00:00Z",
 });
@@ -39,7 +37,7 @@ describe("namespaces.scope(id)", () => {
     const body = mock.requests[0]?.body as Record<string, unknown>;
     expect(body.namespace_id).toBe("ns_42");
     expect(body.content).toBe("hi");
-    expect(body.external_reference_id).toBeUndefined();
+    expect(body.external_id).toBeUndefined();
   });
 
   test("recall preserves time bounds and adds namespace_id", async () => {
@@ -119,7 +117,7 @@ describe("namespaces.scope(id)", () => {
 });
 
 describe("namespaces.scopeByExternalRef(ref)", () => {
-  test("remember injects external_reference_id", async () => {
+  test("remember injects external_id", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonOk({
@@ -132,13 +130,13 @@ describe("namespaces.scopeByExternalRef(ref)", () => {
     const ns = deyta.namespaces.scopeByExternalRef("user-abc");
     await ns.remember({ content: "hi" });
     const body = mock.requests[0]?.body as Record<string, unknown>;
-    expect(body.external_reference_id).toBe("user-abc");
+    expect(body.external_id).toBe("user-abc");
     expect(body.namespace_id).toBeUndefined();
   });
 
   test("metadata() hits /namespaces/external/:ref", async () => {
     const { deyta, mock } = setup();
-    mock.setHandler(() => jsonOk({ ...namespacePayload("ns_77"), external_reference_id: "user-abc" }));
+    mock.setHandler(() => jsonOk({ ...namespacePayload("ns_77"), external_id: "user-abc" }));
     const ns = deyta.namespaces.scopeByExternalRef("user-abc");
     const meta = await ns.metadata();
     expect(meta.id).toBe("ns_77");
@@ -153,7 +151,7 @@ describe("namespaces.scopeByExternalRef(ref)", () => {
       if (calls === 1) {
         return jsonOk({
           ...namespacePayload("ns_77"),
-          external_reference_id: "user-abc",
+          external_id: "user-abc",
         });
       }
       return noBody();

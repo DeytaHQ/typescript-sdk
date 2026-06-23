@@ -12,7 +12,7 @@ import type {
 
 /**
  * Flatten a `ListConnectionsParams` into the query-string the gateway
- * expects: `target_type`, `target_id` / `target_external_reference_id`,
+ * expects: `target_type`, `target_id` / `target_external_id`,
  * plus optional `page` / `page_size`.
  */
 function paramsToQuery(
@@ -21,8 +21,7 @@ function paramsToQuery(
   return {
     target_type: params.type,
     target_id: "id" in params ? params.id : undefined,
-    target_external_reference_id:
-      "external_reference_id" in params ? params.external_reference_id : undefined,
+    target_external_id: "external_id" in params ? params.external_id : undefined,
     page: params.page,
     page_size: params.page_size,
   };

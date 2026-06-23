@@ -32,8 +32,8 @@ export type SdkLogEvent =
 export type SdkLogger = (event: SdkLogEvent) => void;
 
 export interface DeytaConfig {
-  /** API key for authentication (Bearer token). Required. */
-  apiKey: string;
+  /** API key for authentication (Bearer token). Optional for local servers. */
+  apiKey?: string;
   /**
    * Base URL of the Deyta API. Resolution order:
    *   1. Explicit `baseUrl` passed here
@@ -69,8 +69,9 @@ interface ResolvedRetryConfig {
 }
 
 export class HttpClient {
+  private readonly rawBaseUrl: string;
   private readonly baseUrl: string;
-  private readonly apiKey: string;
+  private readonly apiKey: string | undefined;
   private readonly timeout: number;
   private readonly retry: ResolvedRetryConfig;
   private readonly fetchImpl: typeof fetch;
@@ -78,11 +79,9 @@ export class HttpClient {
   private readonly userAgent: string;
 
   constructor(config: DeytaConfig) {
-    if (!config.apiKey) {
-      throw new Error("DeytaConfig.apiKey is required");
-    }
     const base = resolveBaseUrl(config.baseUrl).replace(/\/+$/, "");
-    this.baseUrl = `${base}/gateway/v1`;
+    this.rawBaseUrl = base;
+    this.baseUrl = `${base}/api/v1`;
     this.apiKey = config.apiKey;
     this.timeout = config.timeout ?? DEFAULT_TIMEOUT_MS;
     this.retry = resolveRetryConfig(config.retries);
@@ -115,6 +114,10 @@ export class HttpClient {
     return { data: paginated.data, pagination: paginated.pagination };
   }
 
+  async postRaw(path: string, body?: unknown, opts?: RequestOptions): Promise<Response> {
+    return this.rawRequest("POST", path, body, opts);
+  }
+
   async request<T>(
     method: string,
     path: string,
@@ -134,13 +137,24 @@ export class HttpClient {
     return (json as SuccessResponse<T>).data;
   }
 
+  async rootGet<T>(path: string, opts?: RequestOptions): Promise<T> {
+    const response = await this.rawRequest("GET", path, undefined, opts, this.rawBaseUrl);
+    if (response.status === 204) return undefined as T;
+    const json = (await response.json()) as SuccessResponse<T> | ErrorResponseBody;
+    if (!json.success) {
+      throwFromBody(json);
+    }
+    return (json as SuccessResponse<T>).data;
+  }
+
   private async rawRequest(
     method: string,
     path: string,
     body?: unknown,
     opts?: RequestOptions,
+    overrideBaseUrl?: string,
   ): Promise<Response> {
-    const url = `${this.baseUrl}${path}`;
+    const url = `${overrideBaseUrl ?? this.baseUrl}${path}`;
     const isRetryable = canRetry(method);
     const maxAttempts = isRetryable ? this.retry.maxRetries + 1 : 1;
 
@@ -234,16 +248,15 @@ export class HttpClient {
       const signal = signals.length === 1 ? signals[0] : AbortSignal.any(signals);
 
       const headers: Record<string, string> = {
-        Authorization: `Bearer ${this.apiKey}`,
         "User-Agent": this.userAgent,
         Accept: "application/json",
       };
+      if (this.apiKey) headers.Authorization = `Bearer ${this.apiKey}`;
       if (body !== undefined) headers["Content-Type"] = "application/json";
 
-      // Caller headers merge after — they win except on Authorization.
       if (opts?.headers) {
         for (const [k, v] of Object.entries(opts.headers)) {
-          if (k.toLowerCase() === "authorization") continue;
+          if (k.toLowerCase() === "authorization" && this.apiKey) continue;
           headers[k] = v;
         }
       }

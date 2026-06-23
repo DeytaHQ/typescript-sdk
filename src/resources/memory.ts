@@ -4,6 +4,8 @@ import type {
   AskResult,
   ForgetInput,
   ForgetResult,
+  IngestInput,
+  IngestProgressEvent,
   RecallInput,
   RecallResult,
   RememberInput,
@@ -30,6 +32,18 @@ export class Memory {
   async ask(input: AskInput, opts?: RequestOptions): Promise<AskResult> {
     return this.http.post<AskResult>("/ask", toWireTimeRange(input), opts);
   }
+
+  async *ingest(
+    input: IngestInput,
+    opts?: RequestOptions,
+  ): AsyncGenerator<IngestProgressEvent> {
+    const sseOpts: RequestOptions = {
+      ...opts,
+      headers: { ...opts?.headers, Accept: "text/event-stream" },
+    };
+    const response = await this.http.postRaw("/ingest", input, sseOpts);
+    yield* parseSSE(response);
+  }
 }
 
 /**
@@ -49,4 +63,36 @@ export function toWireTimeRange<T extends { from?: TimeBound; until?: TimeBound 
 
 function toIso(t: TimeBound): string {
   return t instanceof Date ? t.toISOString() : t;
+}
+
+async function* parseSSE(response: Response): AsyncGenerator<IngestProgressEvent> {
+  const body = response.body;
+  if (!body) return;
+
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop()!;
+
+      for (const part of parts) {
+        const dataLine = part
+          .split("\n")
+          .find((l) => l.startsWith("data: "));
+        if (!dataLine) continue;
+        const json = dataLine.slice(6);
+        if (json === "[DONE]") return;
+        yield JSON.parse(json) as IngestProgressEvent;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }

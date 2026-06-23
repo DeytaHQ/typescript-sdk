@@ -14,11 +14,9 @@ function setup() {
 
 const ns = (id: string, extra: Partial<{ name: string }> = {}) => ({
   id,
-  org_id: "org_1",
   name: extra.name ?? `ns ${id}`,
   description: null,
-  external_reference_id: null,
-  mcp_endpoint_url: `https://mcp.deyta.ai/${id}`,
+  external_id: null,
   created_at: "2026-04-26T00:00:00Z",
   updated_at: "2026-04-26T00:00:00Z",
 });

@@ -40,7 +40,7 @@ describe("HttpClient — request shape", () => {
       const { deyta, mock } = setup();
       mock.setHandler(() => jsonOk({ id: "ns_1" }));
       await deyta.namespaces.get("ns_1");
-      expect(mock.requests[0]?.url).toBe("https://api.deyta.ai/gateway/v1/namespaces/ns_1");
+      expect(mock.requests[0]?.url).toBe("https://api.deyta.ai/api/v1/namespaces/ns_1");
     });
   });
 
@@ -50,7 +50,7 @@ describe("HttpClient — request shape", () => {
       mock.setHandler(() => jsonOk({ id: "ns_1" }));
       await deyta.namespaces.get("ns_1");
       expect(mock.requests[0]?.url).toBe(
-        "https://console.deyta.ai/gateway/v1/namespaces/ns_1",
+        "https://console.deyta.ai/api/v1/namespaces/ns_1",
       );
     });
   });
@@ -66,7 +66,7 @@ describe("HttpClient — request shape", () => {
       mock.setHandler(() => jsonOk({ id: "x" }));
       await deyta.namespaces.get("x");
       expect(mock.requests[0]?.url).toBe(
-        "https://staging.deyta.ai/gateway/v1/namespaces/x",
+        "https://staging.deyta.ai/api/v1/namespaces/x",
       );
     });
   });
@@ -83,7 +83,7 @@ describe("HttpClient — request shape", () => {
         mock.setHandler(() => jsonOk({ id: "ns_1" }));
         await deyta.namespaces.get("ns_1");
         expect(mock.requests[0]?.url).toBe(
-          "https://api.deyta.ai/gateway/v1/namespaces/ns_1",
+          "https://api.deyta.ai/api/v1/namespaces/ns_1",
         );
         expect(warnings).toHaveLength(1);
         expect(String(warnings[0]?.[0])).toContain("DEYTA_BASE_URL");
@@ -99,7 +99,7 @@ describe("HttpClient — request shape", () => {
       mock.setHandler(() => jsonOk({ id: "ns_1" }));
       await deyta.namespaces.get("ns_1");
       expect(mock.requests[0]?.url).toBe(
-        "https://staging.deyta.ai/gateway/v1/namespaces/ns_1",
+        "https://staging.deyta.ai/api/v1/namespaces/ns_1",
       );
     });
   });
@@ -113,7 +113,7 @@ describe("HttpClient — request shape", () => {
     });
     mock.setHandler(() => jsonOk({ id: "ns_1" }));
     await deyta.namespaces.get("ns_1");
-    expect(mock.requests[0]?.url).toBe("https://staging.deyta.ai/gateway/v1/namespaces/ns_1");
+    expect(mock.requests[0]?.url).toBe("https://staging.deyta.ai/api/v1/namespaces/ns_1");
   });
 
   test("strips trailing slashes from baseUrl", async () => {
@@ -125,7 +125,7 @@ describe("HttpClient — request shape", () => {
     });
     mock.setHandler(() => jsonOk({ id: "x" }));
     await deyta.namespaces.get("x");
-    expect(mock.requests[0]?.url).toBe("https://api.deyta.ai/gateway/v1/namespaces/x");
+    expect(mock.requests[0]?.url).toBe("https://api.deyta.ai/api/v1/namespaces/x");
   });
 
   test("sends Authorization, User-Agent, Accept headers on every request", async () => {
@@ -149,8 +149,28 @@ describe("HttpClient — request shape", () => {
     expect(headers.get("authorization")).toBe("Bearer test-key");
   });
 
-  test("requires apiKey", () => {
-    expect(() => new Deyta({ apiKey: "" })).toThrow(/apiKey is required/);
+  test("omits Authorization header when apiKey is unset", async () => {
+    const mock = new FetchMock();
+    const deyta = new Deyta({
+      fetch: mock.fetch,
+      retries: { maxRetries: 0 },
+    });
+    mock.setHandler(() => jsonOk({ id: "x" }));
+    await deyta.namespaces.get("x");
+    expect(mock.requests[0]!.headers.get("authorization")).toBeNull();
+  });
+
+  test("allows caller-set Authorization when apiKey is unset", async () => {
+    const mock = new FetchMock();
+    const deyta = new Deyta({
+      fetch: mock.fetch,
+      retries: { maxRetries: 0 },
+    });
+    mock.setHandler(() => jsonOk({ id: "x" }));
+    await deyta.namespaces.get("x", {
+      headers: { Authorization: "Bearer custom" },
+    });
+    expect(mock.requests[0]!.headers.get("authorization")).toBe("Bearer custom");
   });
 });
 

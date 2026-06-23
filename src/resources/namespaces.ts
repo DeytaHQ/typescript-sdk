@@ -81,7 +81,7 @@ export class Namespaces {
       this.memory,
       this,
       this.integrations,
-      { external_reference_id: externalRef },
+      { external_id: externalRef },
     );
   }
 }

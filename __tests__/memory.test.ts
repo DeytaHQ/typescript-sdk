@@ -30,7 +30,7 @@ describe("Memory.remember", () => {
     });
     expect(result.document_id).toBe("doc_1");
     expect(result.chunks_created).toBe(3);
-    expect(mock.requests[0]?.url).toMatch(/\/gateway\/v1\/remember$/);
+    expect(mock.requests[0]?.url).toMatch(/\/api\/v1\/remember$/);
     expect(mock.requests[0]?.method).toBe("POST");
     expect(mock.requests[0]?.body).toMatchObject({
       namespace_id: "ns_1",
@@ -131,14 +131,14 @@ describe("Memory.recall", () => {
       }),
     );
     const result = await deyta.memory.recall({
-      external_reference_id: "user-abc",
+      external_id: "user-abc",
       query: "anything",
     });
     expect(result.chunks.length).toBe(1);
     expect(result.documents.length).toBe(1);
     expect(result.documents[0]?.id).toBe("d1");
     const body = mock.requests[0]?.body as Record<string, unknown>;
-    expect(body.external_reference_id).toBe("user-abc");
+    expect(body.external_id).toBe("user-abc");
   });
 });
 
