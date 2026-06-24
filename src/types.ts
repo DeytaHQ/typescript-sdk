@@ -10,7 +10,8 @@ export interface SuccessResponse<T> {
 export interface PaginatedResponse<T> {
   success: true;
   data: T[];
-  pagination: Pagination;
+  has_more: boolean;
+  next_cursor: string | null;
 }
 
 export interface ErrorResponseBody {
@@ -23,38 +24,28 @@ export interface ErrorResponseBody {
 }
 
 export interface Pagination {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
+  has_more: boolean;
+  next_cursor: string | null;
 }
 
 // ── Namespace targeting ─────────────────────────────────────────────
 
 /**
- * Most Gateway endpoints accept either `namespace_id` or `external_reference_id`
+ * Most Gateway endpoints accept either `namespace_id` or `external_id`
  * to identify the target namespace. Provide exactly one.
  */
 export type NamespaceTarget =
-  | { namespace_id: string; external_reference_id?: never }
-  | { external_reference_id: string; namespace_id?: never };
-
-/**
- * Identify a persona by its `id` or its `external_reference_id`. Provide
- * exactly one. Used by `personas.scope()` / `personas.scopeByExternalRef()`.
- */
-export type PersonaTarget =
-  | { persona_id: string; external_reference_id?: never }
-  | { external_reference_id: string; persona_id?: never };
+  | { namespace_id: string; external_id?: never }
+  | { external_id: string; namespace_id?: never };
 
 /**
  * Typed reference to an addressable resource (namespace or persona). Provide
- * exactly one of `id` or `external_reference_id`. Used by the integrations
+ * exactly one of `id` or `external_id`. Used by the integrations
  * surface to pick a namespace directly or via the persona that owns it.
  */
 export type Target = { type: "namespace" | "persona" } & (
-  | { id: string; external_reference_id?: never }
-  | { external_reference_id: string; id?: never }
+  | { id: string; external_id?: never }
+  | { external_id: string; id?: never }
 );
 
 // ── Time bounds ─────────────────────────────────────────────────────
@@ -84,6 +75,8 @@ export type RememberInput = NamespaceTarget & {
   source_url?: string;
   metadata?: Record<string, unknown>;
   ontology_id?: string;
+  entity_types?: string[];
+  relationship_types?: string[];
 };
 
 export interface RememberResult {
@@ -93,13 +86,15 @@ export interface RememberResult {
   relationships_created: number;
 }
 
-export type RecallMode = "vector" | "graph" | "hybrid" | "all";
+export type RecallMode = "vector" | "graph" | "hybrid" | "keyword" | "all";
 
 export type RecallInput = NamespaceTarget &
   TimeRange & {
     query: string;
     limit?: number;
     mode?: RecallMode;
+    min_similarity?: number;
+    context?: boolean;
     /**
      * When true, the response includes the operator-owned `engine_info`
      * diagnostic blob. Defaults to false.
@@ -202,6 +197,7 @@ export interface RecallResult {
   entities: RecallEntity[];
   relationships: RecallRelationship[];
   usage: RecallUsageEvent[];
+  context_text?: string;
   /** Only present when the request set `verbose: true`. */
   engine_info?: EngineInfo;
 }
@@ -314,11 +310,9 @@ export interface AskResult {
 
 export interface Namespace {
   id: string;
-  org_id: string;
   name: string;
   description: string | null;
-  external_reference_id: string | null;
-  mcp_endpoint_url: string;
+  external_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -326,170 +320,12 @@ export interface Namespace {
 export interface CreateNamespaceInput {
   name: string;
   description?: string;
-  external_reference_id?: string;
+  external_id?: string;
 }
 
 export interface ListNamespacesParams {
-  page?: number;
-  page_size?: number;
-}
-
-// ── Personas ────────────────────────────────────────────────────────
-
-/**
- * Top-level persona record. `id` is stable across SDK calls — pass it to
- * `build()`, `status()`, `update()`, and `delete()`. Each persona owns a
- * backing namespace (`namespace_id`) created automatically; that namespace
- * is where memory and integrations land.
- */
-export interface Persona {
-  id: string;
-  org_id: string;
-  namespace_id: string;
-  external_reference_id: string | null;
-  subject: string;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-  [key: string]: unknown;
-}
-
-/**
- * Composite persona document spread alongside `Persona` when `built === true`.
- * Shape is permissive — the gateway may add fields, captured by the index
- * signature.
- */
-export interface ComposedPersona {
-  built_at: string;
-  source_event_count: number;
-  providers: Array<Record<string, unknown>>;
-  identity: Record<string, unknown>;
-  traits: Record<string, unknown>;
-  episodes: Array<Record<string, unknown>>;
-  peers: Array<Record<string, unknown>>;
-  facets: Record<string, unknown>;
-  [key: string]: unknown;
-}
-
-/**
- * Response shape returned by `GET /personas/:id` and
- * `GET /personas/reference/:externalReferenceId`. Discriminated on `built`:
- * when `false`, only the base record is returned — call `personas.build(id)`
- * and poll `status()`. When `true`, the composite fields (identity, traits,
- * episodes, peers, facets, providers, source_event_count, built_at) are
- * spread alongside the base record.
- */
-export type PersonaResponse =
-  | (Persona & { built: false })
-  | (Persona & { built: true } & ComposedPersona);
-
-export type PersonaStatusValue = "queued" | "building" | "ready" | "not_built";
-
-/**
- * Readiness signal for the persisted persona summary, embedded in
- * `PersonaBuildStatus.summary`. Lets callers check whether a summary exists
- * without making a separate `getSummary()` call (which would throw
- * `NOT_FOUND` when none has been generated).
- *
- * Compute staleness against the persona's current build with
- * `last_built_at > generated_at`; skip the comparison when either side is
- * null. `persona_built_at` is null when `available` is false, and also for
- * legacy summary rows that predate the platform migration which began
- * capturing this value at INSERT time.
- */
-export interface PersonaSummaryReadiness {
-  /** `true` when a persisted summary exists for the persona. */
-  available: boolean;
-  /** ISO-8601 datetime when the summary was generated. Null when `available` is false. */
-  generated_at: string | null;
-  /**
-   * ISO-8601 datetime of the persona's last build at the time the summary
-   * was inserted. Null when `available` is false, or for legacy summary
-   * rows that predate the platform migration.
-   */
-  persona_built_at: string | null;
-}
-
-export interface PersonaBuildStatus {
-  status: PersonaStatusValue;
-  last_built_at: string | null;
-  /** Readiness of the persisted persona summary. */
-  summary: PersonaSummaryReadiness;
-  /** Populated only when `status()` is called with `?details=true`. */
-  build_progress?: Record<string, unknown>;
-  [key: string]: unknown;
-}
-
-export interface BuildAccepted {
-  build_id: string;
-  status: "accepted";
-  [key: string]: unknown;
-}
-
-/**
- * Optional build-window overrides for `personas.build()`. All fields are
- * optional — when omitted, the gateway applies its defaults (60 / 14 / 14 /
- * 0.5).
- */
-export interface BuildPersonaInput {
-  /** Context window in days. Default: 60. Minimum: 1. */
-  context_window_days?: number;
-  /** Focus past window in days. Default: 14. Minimum: 1. */
-  focus_past_days?: number;
-  /** Focus future window in days. Default: 14. Minimum: 0. */
-  focus_future_days?: number;
-  /** Focus ratio in `[0, 1]`. Default: 0.5. */
-  focus_ratio?: number;
-}
-
-export interface CreatePersonaInput {
-  subject: string;
-  external_reference_id?: string;
-  description?: string;
-}
-
-export interface UpdatePersonaInput {
-  /** Pass `null` to clear. Omit to leave unchanged. */
-  external_reference_id?: string | null;
-  /** Pass `null` to clear. Omit to leave unchanged. */
-  description?: string | null;
-}
-
-export interface ListPersonasParams {
-  page?: number;
-  page_size?: number;
-}
-
-/**
- * Persisted persona summary record. Returned by both
- * `GET /personas/:id/summary` (read) and `POST /personas/:id/summary`
- * (regenerate). Compute staleness as `persona_built_at > generated_at` —
- * skip the comparison when `persona_built_at` is null.
- */
-export interface PersonaSummary {
-  /** The post-scratchpad profile prose. */
-  summary: string;
-  /** ISO-8601 datetime when this summary was generated. */
-  generated_at: string;
-  /**
-   * ISO-8601 datetime of the persona's last build at the time the summary
-   * was inserted. Null for legacy summary rows that predate the platform
-   * migration which began capturing this value at INSERT time.
-   */
-  persona_built_at: string | null;
-  [key: string]: unknown;
-}
-
-/**
- * Optional overrides for `POST /personas/:id/summary`. Both fields are
- * optional; when omitted, the upstream service applies its defaults (a
- * built-in system prompt and `temperature = 0`).
- */
-export interface GenerateSummaryInput {
-  /** Optional system-prompt override. Hard-capped at 32 KB. */
-  system_prompt?: string;
-  /** Optional sampling temperature in `[0.0, 2.0]`. Defaults to `0.0`. */
-  temperature?: number;
+  limit?: number;
+  starting_after?: string;
 }
 
 // ── Integrations ────────────────────────────────────────────────────
@@ -527,13 +363,12 @@ export interface DataSourceConnection {
 
 /**
  * Parameters for `Integrations.listConnections`. Combines the typed `Target`
- * (namespace or persona, by `id` or `external_reference_id`) with optional
- * pagination controls. The endpoint now returns the same top-level
- * `{ data, pagination }` envelope as `/namespaces` and `/personas`.
+ * (namespace or persona, by `id` or `external_id`) with optional
+ * cursor-based pagination controls (`limit`, `starting_after`).
  */
 export type ListConnectionsParams = Target & {
-  page?: number;
-  page_size?: number;
+  limit?: number;
+  starting_after?: string;
 };
 
 export interface StartConnectionInput {
@@ -555,4 +390,32 @@ export interface RequestOptions {
   timeout?: number;
   /** Extra headers merged after SDK headers (caller wins on conflicts, except `Authorization`). */
   headers?: Record<string, string>;
+}
+
+// ── Health ──────────────────────────────────────────────────────────
+
+export interface HealthResponse {
+  status: string;
+  [key: string]: unknown;
+}
+
+// ── Ingest ─────────────────────────────────────────────────────────
+
+export interface IngestDocument {
+  content: string;
+  title?: string;
+  source?: string;
+  source_type?: string;
+  source_name?: string;
+  source_url?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export type IngestInput = NamespaceTarget & {
+  documents: IngestDocument[];
+};
+
+export interface IngestProgressEvent {
+  type: string;
+  [key: string]: unknown;
 }

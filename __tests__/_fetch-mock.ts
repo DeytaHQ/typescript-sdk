@@ -42,8 +42,8 @@ export function jsonOk<T>(data: T, status = 200): Response {
   });
 }
 
-export function jsonPaginated<T>(data: T[], pagination: { page: number; pageSize: number; total: number; totalPages: number }): Response {
-  return new Response(JSON.stringify({ success: true, data, pagination }), {
+export function jsonPaginated<T>(data: T[], pagination: { has_more: boolean; next_cursor: string | null }): Response {
+  return new Response(JSON.stringify({ success: true, data, has_more: pagination.has_more, next_cursor: pagination.next_cursor }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });

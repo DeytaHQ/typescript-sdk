@@ -14,11 +14,9 @@ function setup() {
 
 const ns = (id: string, extra: Partial<{ name: string }> = {}) => ({
   id,
-  org_id: "org_1",
   name: extra.name ?? `ns ${id}`,
   description: null,
-  external_reference_id: null,
-  mcp_endpoint_url: `https://mcp.deyta.ai/${id}`,
+  external_id: null,
   created_at: "2026-04-26T00:00:00Z",
   updated_at: "2026-04-26T00:00:00Z",
 });
@@ -136,43 +134,38 @@ describe("Namespaces.list and iterate", () => {
   test("list returns one page with pagination", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
-      jsonPaginated([ns("a"), ns("b")], { page: 1, pageSize: 2, total: 4, totalPages: 2 }),
+      jsonPaginated([ns("a"), ns("b")], { has_more: true, next_cursor: "cur_1" }),
     );
-    const result = await deyta.namespaces.list({ page: 1, page_size: 2 });
+    const result = await deyta.namespaces.list({ limit: 2 });
     expect(result.data.length).toBe(2);
-    expect(result.pagination.totalPages).toBe(2);
+    expect(result.pagination.has_more).toBe(true);
+    expect(result.pagination.next_cursor).toBe("cur_1");
   });
 
   test("iterate yields across pages until exhausted", async () => {
     const { deyta, mock } = setup();
-    const pages: Record<number, [string, string][]> = {
-      1: [["a", "b"], ["c", "d"]] as unknown as [string, string][],
-    };
-    pages[1] = [["a", "b"]] as unknown as [string, string][];
-    mock.setHandler((req) => {
-      const url = new URL(req.url);
-      const page = Number(url.searchParams.get("page") ?? "1");
-      if (page === 1) {
+    let calls = 0;
+    mock.setHandler(() => {
+      calls += 1;
+      if (calls === 1) {
         return jsonPaginated([ns("a"), ns("b")], {
-          page: 1,
-          pageSize: 2,
-          total: 3,
-          totalPages: 2,
+          has_more: true,
+          next_cursor: "cur_1",
         });
       }
       return jsonPaginated([ns("c")], {
-        page: 2,
-        pageSize: 2,
-        total: 3,
-        totalPages: 2,
+        has_more: false,
+        next_cursor: null,
       });
     });
 
     const ids: string[] = [];
-    for await (const item of deyta.namespaces.iterate({ page_size: 2 })) {
+    for await (const item of deyta.namespaces.iterate({ limit: 2 })) {
       ids.push(item.id);
     }
     expect(ids).toEqual(["a", "b", "c"]);
     expect(mock.requests.length).toBe(2);
+    const secondUrl = new URL(mock.requests[1]!.url);
+    expect(secondUrl.searchParams.get("starting_after")).toBe("cur_1");
   });
 });

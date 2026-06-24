@@ -34,12 +34,12 @@ export class Namespaces {
   /**
    * Async iterator that walks every page of namespaces. Yields one
    * `Namespace` per item. Use this when you want all namespaces without
-   * managing page indices yourself.
+   * managing cursors yourself.
    */
   iterate(params?: IterateParams, opts?: RequestOptions): AsyncGenerator<Namespace, void, void> {
-    const pageSize = params?.page_size;
-    return paginate<Namespace>((page) =>
-      this.list({ page, page_size: pageSize }, opts),
+    const limit = params?.limit;
+    return paginate<Namespace>((cursor) =>
+      this.list({ limit, starting_after: cursor ?? undefined }, opts),
     );
   }
 
@@ -81,7 +81,7 @@ export class Namespaces {
       this.memory,
       this,
       this.integrations,
-      { external_reference_id: externalRef },
+      { external_id: externalRef },
     );
   }
 }

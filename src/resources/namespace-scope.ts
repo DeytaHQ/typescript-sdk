@@ -77,7 +77,7 @@ export class NamespaceScope {
     if ("namespace_id" in this.target && this.target.namespace_id) {
       return this.namespaces.get(this.target.namespace_id, opts);
     }
-    return this.namespaces.getByExternalRef(this.target.external_reference_id!, opts);
+    return this.namespaces.getByExternalRef(this.target.external_id!, opts);
   }
 
   /**
@@ -102,7 +102,7 @@ function namespaceAsTarget(target: NamespaceTarget): Target {
   if ("namespace_id" in target && target.namespace_id) {
     return { type: "namespace", id: target.namespace_id };
   }
-  return { type: "namespace", external_reference_id: target.external_reference_id! };
+  return { type: "namespace", external_id: target.external_id! };
 }
 
 /**
@@ -120,7 +120,7 @@ export class NamespaceIntegrationsScope {
   }
 
   list(
-    params?: { page?: number; page_size?: number },
+    params?: { limit?: number; starting_after?: string },
     opts?: RequestOptions,
   ): Promise<PaginatedResult<DataSourceConnection>> {
     return this.integrations.listConnections({ ...this.resolvedTarget, ...params }, opts);

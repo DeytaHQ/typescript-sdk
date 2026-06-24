@@ -12,8 +12,8 @@ import type {
 
 /**
  * Flatten a `ListConnectionsParams` into the query-string the gateway
- * expects: `target_type`, `target_id` / `target_external_reference_id`,
- * plus optional `page` / `page_size`.
+ * expects: `target_type`, `target_id` / `target_external_id`,
+ * plus optional `limit` / `starting_after`.
  */
 function paramsToQuery(
   params: ListConnectionsParams,
@@ -21,10 +21,9 @@ function paramsToQuery(
   return {
     target_type: params.type,
     target_id: "id" in params ? params.id : undefined,
-    target_external_reference_id:
-      "external_reference_id" in params ? params.external_reference_id : undefined,
-    page: params.page,
-    page_size: params.page_size,
+    target_external_id: "external_id" in params ? params.external_id : undefined,
+    limit: params.limit,
+    starting_after: params.starting_after,
   };
 }
 
@@ -60,9 +59,9 @@ export class Integrations {
     params?: IterateParams,
     opts?: RequestOptions,
   ): AsyncGenerator<DataSourceConnection, void, void> {
-    const pageSize = params?.page_size;
-    return paginate<DataSourceConnection>((page) =>
-      this.listConnections({ ...target, page, page_size: pageSize }, opts),
+    const limit = params?.limit;
+    return paginate<DataSourceConnection>((cursor) =>
+      this.listConnections({ ...target, limit, starting_after: cursor ?? undefined }, opts),
     );
   }
 

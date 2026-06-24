@@ -12,10 +12,6 @@ export {
   NamespaceScope,
   NamespaceIntegrationsScope,
 } from "./resources/namespace-scope.js";
-export {
-  PersonaScope,
-  PersonaIntegrationsScope,
-} from "./resources/persona-scope.js";
 export { SDK_VERSION } from "./version.js";
 export type {
   // Response envelopes
@@ -27,7 +23,6 @@ export type {
 
   // Targeting
   NamespaceTarget,
-  PersonaTarget,
   Target,
 
   // Time bounds
@@ -57,6 +52,14 @@ export type {
   AskTiming,
   AskCostEvent,
 
+  // Health
+  HealthResponse,
+
+  // Ingest
+  IngestDocument,
+  IngestInput,
+  IngestProgressEvent,
+
   // Namespaces
   Namespace,
   CreateNamespaceInput,
@@ -70,19 +73,5 @@ export type {
   StartConnectionInput,
   StartConnectionResult,
 
-  // Personas
-  Persona,
-  PersonaResponse,
-  PersonaBuildStatus,
-  PersonaStatusValue,
-  PersonaSummaryReadiness,
-  BuildAccepted,
-  BuildPersonaInput,
-  ComposedPersona,
-  CreatePersonaInput,
-  UpdatePersonaInput,
-  ListPersonasParams,
-  PersonaSummary,
-  GenerateSummaryInput,
 } from "./types.js";
 export type { IterateParams } from "./pagination.js";

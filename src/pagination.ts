@@ -1,23 +1,22 @@
 import type { PaginatedResult } from "./client.js";
 
 export interface IterateParams {
-  /** Page size for each underlying request. Defaults to the API default. */
-  page_size?: number;
+  /** Items per request. Defaults to the API default (50). */
+  limit?: number;
 }
 
 /**
- * Generic page-walker. Yields each item from page 1 until the API reports
- * no more pages. The `fetchPage` callback is responsible for producing
- * a `PaginatedResult` for a given page index.
+ * Generic cursor-walker. Yields each item from the first page onward,
+ * following `next_cursor` until `has_more` is false.
  */
 export async function* paginate<T>(
-  fetchPage: (page: number) => Promise<PaginatedResult<T>>,
+  fetchPage: (cursor: string | null) => Promise<PaginatedResult<T>>,
 ): AsyncGenerator<T, void, void> {
-  let page = 1;
+  let cursor: string | null = null;
   while (true) {
-    const { data, pagination } = await fetchPage(page);
+    const { data, pagination } = await fetchPage(cursor);
     for (const item of data) yield item;
-    if (page >= pagination.totalPages || pagination.totalPages === 0) return;
-    page += 1;
+    if (!pagination.has_more || !pagination.next_cursor) return;
+    cursor = pagination.next_cursor;
   }
 }

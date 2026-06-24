@@ -6,6 +6,23 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Memory.ingest()` — SSE-streaming bulk document ingestion endpoint.
+- `Deyta.health()` — hits `/health` on the root URL (no `/api/v1` prefix).
+- `RememberInput.entity_types`, `RememberInput.relationship_types`.
+- `RecallInput.min_similarity`, `RecallInput.context`.
+- `RecallResult.context_text` (optional, returned when `context: true`).
+- `RecallMode` gains `"keyword"` variant.
+- New types: `HealthResponse`, `IngestDocument`, `IngestInput`, `IngestProgressEvent`.
+
+### Changed
+- **Breaking** API path prefix changed from `/gateway/v1` to `/api/v1`.
+- **Breaking** `external_reference_id` renamed to `external_id` on `NamespaceTarget`, `Target`, `Namespace`, `CreateNamespaceInput`, and all wire params.
+- **Breaking** `Namespace` type drops `org_id` and `mcp_endpoint_url`.
+- **Breaking** Personas module removed — `Personas`, `PersonaScope`, `PersonaIntegrationsScope`, and all persona types/exports deleted.
+- **Breaking** Pagination switched from offset-based (`page`/`page_size`/`total`/`totalPages`) to cursor-based (`has_more`/`next_cursor`). List params now use `limit` and `starting_after` instead of `page` and `page_size`. `PaginatedResponse` returns `has_more`/`next_cursor` at the top level instead of a nested `pagination` object.
+- `DeytaConfig.apiKey` is now optional to support local/unauthenticated servers. Caller-supplied `Authorization` headers pass through when `apiKey` is unset.
+
 ## [0.6.0]
 
 ### Added
