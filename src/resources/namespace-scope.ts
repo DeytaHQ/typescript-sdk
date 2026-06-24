@@ -120,7 +120,7 @@ export class NamespaceIntegrationsScope {
   }
 
   list(
-    params?: { page?: number; page_size?: number },
+    params?: { limit?: number; starting_after?: string },
     opts?: RequestOptions,
   ): Promise<PaginatedResult<DataSourceConnection>> {
     return this.integrations.listConnections({ ...this.resolvedTarget, ...params }, opts);

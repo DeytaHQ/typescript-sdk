@@ -42,10 +42,8 @@ describe("Integrations", () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonPaginated([conn("conn_1")], {
-        page: 1,
-        pageSize: 20,
-        total: 1,
-        totalPages: 1,
+        has_more: false,
+        next_cursor: null,
       }),
     );
     const result = await deyta.integrations.listConnections({
@@ -55,10 +53,8 @@ describe("Integrations", () => {
     expect(result.data).toHaveLength(1);
     expect(result.data[0]?.id).toBe("conn_1");
     expect(result.pagination).toEqual({
-      page: 1,
-      pageSize: 20,
-      total: 1,
-      totalPages: 1,
+      has_more: false,
+      next_cursor: null,
     });
     const url = new URL(mock.requests[0]!.url);
     expect(url.searchParams.get("target_type")).toBe("namespace");
@@ -66,30 +62,28 @@ describe("Integrations", () => {
     expect(url.searchParams.get("target_external_id")).toBeNull();
   });
 
-  test("listConnections forwards page / page_size when provided", async () => {
+  test("listConnections forwards limit / starting_after when provided", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
-      jsonPaginated([], { page: 2, pageSize: 50, total: 75, totalPages: 2 }),
+      jsonPaginated([], { has_more: false, next_cursor: null }),
     );
     await deyta.integrations.listConnections({
       type: "namespace",
       id: "ns_1",
-      page: 2,
-      page_size: 50,
+      limit: 50,
+      starting_after: "cur_1",
     });
     const url = new URL(mock.requests[0]!.url);
-    expect(url.searchParams.get("page")).toBe("2");
-    expect(url.searchParams.get("page_size")).toBe("50");
+    expect(url.searchParams.get("limit")).toBe("50");
+    expect(url.searchParams.get("starting_after")).toBe("cur_1");
   });
 
   test("listConnections flattens persona+external_id target", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
       jsonPaginated([{ ...conn("conn_1"), persona_id: "agt_1" }], {
-        page: 1,
-        pageSize: 20,
-        total: 1,
-        totalPages: 1,
+        has_more: false,
+        next_cursor: null,
       }),
     );
     await deyta.integrations.listConnections({
@@ -109,33 +103,28 @@ describe("Integrations", () => {
       calls += 1;
       if (calls === 1) {
         return jsonPaginated([conn("c1"), conn("c2")], {
-          page: 1,
-          pageSize: 2,
-          total: 3,
-          totalPages: 2,
+          has_more: true,
+          next_cursor: "cur_1",
         });
       }
       return jsonPaginated([conn("c3")], {
-        page: 2,
-        pageSize: 2,
-        total: 3,
-        totalPages: 2,
+        has_more: false,
+        next_cursor: null,
       });
     });
     const ids: string[] = [];
     for await (const c of deyta.integrations.iterateConnections(
       { type: "namespace", id: "ns_1" },
-      { page_size: 2 },
+      { limit: 2 },
     )) {
       ids.push(c.id);
     }
     expect(ids).toEqual(["c1", "c2", "c3"]);
     expect(mock.requests).toHaveLength(2);
     const firstUrl = new URL(mock.requests[0]!.url);
-    expect(firstUrl.searchParams.get("page")).toBe("1");
-    expect(firstUrl.searchParams.get("page_size")).toBe("2");
+    expect(firstUrl.searchParams.get("limit")).toBe("2");
     const secondUrl = new URL(mock.requests[1]!.url);
-    expect(secondUrl.searchParams.get("page")).toBe("2");
+    expect(secondUrl.searchParams.get("starting_after")).toBe("cur_1");
   });
 
   test("getConnection hits /integrations/connections/:id", async () => {
@@ -180,10 +169,8 @@ describe("Integrations", () => {
       calls += 1;
       if (calls === 1) {
         return jsonPaginated([conn("conn_1")], {
-          page: 1,
-          pageSize: 20,
-          total: 1,
-          totalPages: 1,
+          has_more: false,
+          next_cursor: null,
         });
       }
       return jsonOk({ ...conn("conn_2"), session_token: "tok", auth_link_url: "https://link" });
@@ -192,7 +179,7 @@ describe("Integrations", () => {
     const ns = deyta.namespaces.scopeByExternalRef("ref_ns");
     const page = await ns.integrations.list();
     expect(page.data).toHaveLength(1);
-    expect(page.pagination.total).toBe(1);
+    expect(page.pagination.has_more).toBe(false);
     await ns.integrations.start({ provider: "notion" });
 
     const listUrl = new URL(mock.requests[0]!.url);

@@ -111,7 +111,13 @@ export class HttpClient {
     }
 
     const paginated = json as PaginatedResponse<T>;
-    return { data: paginated.data, pagination: paginated.pagination };
+    return {
+      data: paginated.data,
+      pagination: {
+        has_more: paginated.has_more ?? false,
+        next_cursor: paginated.next_cursor ?? null,
+      },
+    };
   }
 
   async postRaw(path: string, body?: unknown, opts?: RequestOptions): Promise<Response> {

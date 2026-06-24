@@ -10,7 +10,8 @@ export interface SuccessResponse<T> {
 export interface PaginatedResponse<T> {
   success: true;
   data: T[];
-  pagination: Pagination;
+  has_more: boolean;
+  next_cursor: string | null;
 }
 
 export interface ErrorResponseBody {
@@ -23,10 +24,8 @@ export interface ErrorResponseBody {
 }
 
 export interface Pagination {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
+  has_more: boolean;
+  next_cursor: string | null;
 }
 
 // ── Namespace targeting ─────────────────────────────────────────────
@@ -325,8 +324,8 @@ export interface CreateNamespaceInput {
 }
 
 export interface ListNamespacesParams {
-  page?: number;
-  page_size?: number;
+  limit?: number;
+  starting_after?: string;
 }
 
 // ── Integrations ────────────────────────────────────────────────────
@@ -365,12 +364,11 @@ export interface DataSourceConnection {
 /**
  * Parameters for `Integrations.listConnections`. Combines the typed `Target`
  * (namespace or persona, by `id` or `external_id`) with optional
- * pagination controls. The endpoint now returns the same top-level
- * `{ data, pagination }` envelope as `/namespaces` and `/personas`.
+ * cursor-based pagination controls (`limit`, `starting_after`).
  */
 export type ListConnectionsParams = Target & {
-  page?: number;
-  page_size?: number;
+  limit?: number;
+  starting_after?: string;
 };
 
 export interface StartConnectionInput {

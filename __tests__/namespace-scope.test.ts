@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { Deyta } from "../src/index.js";
-import { FetchMock, jsonOk, noBody } from "./_fetch-mock.js";
+import { FetchMock, jsonOk, jsonPaginated, noBody } from "./_fetch-mock.js";
 
 function setup() {
   const mock = new FetchMock();
@@ -81,7 +81,7 @@ describe("namespaces.scope(id)", () => {
 
   test("integrations.list flattens scope into target_type=namespace&target_id", async () => {
     const { deyta, mock } = setup();
-    mock.setHandler(() => jsonOk([]));
+    mock.setHandler(() => jsonPaginated([], { has_more: false, next_cursor: null }));
     const ns = deyta.namespaces.scope("ns_42");
     await ns.integrations.list();
     const url = new URL(mock.requests[0]!.url);
