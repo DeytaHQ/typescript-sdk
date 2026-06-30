@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { Deyta } from "../src/index.js";
-import { FetchMock, jsonOk, jsonPaginated, noBody } from "./_fetch-mock.js";
+import { FetchMock, jsonOk, jsonPaginated, noBody, sseOk } from "./_fetch-mock.js";
 
 function setup() {
   const mock = new FetchMock();
@@ -89,6 +89,22 @@ describe("namespaces.scope(id)", () => {
     expect(url.searchParams.get("target_id")).toBe("ns_42");
   });
 
+  test("rememberBatch injects namespace_id", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      sseOk([{
+        type: "result",
+        total: 1, processed: 1, skipped: 0, failed: 0,
+        chunks: 1, entities: 0, relationships: 0, documents: [],
+      }]),
+    );
+    const ns = deyta.namespaces.scope("ns_42");
+    const result = await ns.rememberBatch({ documents: [{ content: "hi" }] });
+    const body = mock.requests[0]?.body as Record<string, unknown>;
+    expect(body.namespace_id).toBe("ns_42");
+    expect(result.processed).toBe(1);
+  });
+
   test("integrations.start nests target=namespace into body", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
@@ -117,6 +133,23 @@ describe("namespaces.scope(id)", () => {
 });
 
 describe("namespaces.scopeByExternalRef(ref)", () => {
+  test("rememberBatch injects external_id", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      sseOk([{
+        type: "result",
+        total: 1, processed: 1, skipped: 0, failed: 0,
+        chunks: 1, entities: 0, relationships: 0, documents: [],
+      }]),
+    );
+    const ns = deyta.namespaces.scopeByExternalRef("user-abc");
+    const result = await ns.rememberBatch({ documents: [{ content: "hi" }] });
+    const body = mock.requests[0]?.body as Record<string, unknown>;
+    expect(body.external_id).toBe("user-abc");
+    expect(body.namespace_id).toBeUndefined();
+    expect(result.processed).toBe(1);
+  });
+
   test("remember injects external_id", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>

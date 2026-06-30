@@ -55,10 +55,13 @@ export type {
   // Health
   HealthResponse,
 
-  // Ingest
-  IngestDocument,
-  IngestInput,
-  IngestProgressEvent,
+  // Batch remember
+  RememberBatchDocument,
+  RememberBatchInput,
+  RememberBatchResult,
+  RememberBatchDocumentResult,
+  RememberBatchProgressEvent,
+  RememberBatchOptions,
 
   // Namespaces
   Namespace,

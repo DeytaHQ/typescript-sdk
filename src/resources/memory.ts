@@ -1,13 +1,16 @@
 import type { HttpClient } from "../client.js";
+import { DeytaError } from "../errors.js";
 import type {
   AskInput,
   AskResult,
   ForgetInput,
   ForgetResult,
-  IngestInput,
-  IngestProgressEvent,
   RecallInput,
   RecallResult,
+  RememberBatchInput,
+  RememberBatchOptions,
+  RememberBatchProgressEvent,
+  RememberBatchResult,
   RememberInput,
   RememberResult,
   RequestOptions,
@@ -33,16 +36,35 @@ export class Memory {
     return this.http.post<AskResult>("/ask", toWireTimeRange(input), opts);
   }
 
-  async *ingest(
-    input: IngestInput,
-    opts?: RequestOptions,
-  ): AsyncGenerator<IngestProgressEvent> {
+  async rememberBatch(
+    input: RememberBatchInput,
+    opts?: RememberBatchOptions,
+  ): Promise<RememberBatchResult> {
     const sseOpts: RequestOptions = {
       ...opts,
       headers: { ...opts?.headers, Accept: "text/event-stream" },
     };
-    const response = await this.http.postRaw("/ingest", input, sseOpts);
-    yield* parseSSE(response);
+    const response = await this.http.postRaw("/remember-batch", input, sseOpts);
+    let result: RememberBatchResult | undefined;
+
+    for await (const event of parseSSE(response)) {
+      opts?.onProgress?.(event);
+      if (event.type === "error") {
+        throw new DeytaError(
+          "INTERNAL_ERROR",
+          (event as { detail?: string }).detail ?? "Batch remember failed",
+          500,
+        );
+      }
+      if (event.type === "result") {
+        result = event as unknown as RememberBatchResult;
+      }
+    }
+
+    if (!result) {
+      throw new DeytaError("INTERNAL_ERROR", "Stream ended without a result event", 500);
+    }
+    return result;
   }
 }
 
@@ -65,7 +87,7 @@ function toIso(t: TimeBound): string {
   return t instanceof Date ? t.toISOString() : t;
 }
 
-async function* parseSSE(response: Response): AsyncGenerator<IngestProgressEvent> {
+async function* parseSSE(response: Response): AsyncGenerator<RememberBatchProgressEvent> {
   const body = response.body;
   if (!body) return;
 
@@ -89,7 +111,7 @@ async function* parseSSE(response: Response): AsyncGenerator<IngestProgressEvent
         if (!dataLine) continue;
         const json = dataLine.slice(6);
         if (json === "[DONE]") return;
-        yield JSON.parse(json) as IngestProgressEvent;
+        yield JSON.parse(json) as RememberBatchProgressEvent;
       }
     }
   } finally {

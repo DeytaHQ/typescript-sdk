@@ -399,9 +399,9 @@ export interface HealthResponse {
   [key: string]: unknown;
 }
 
-// ── Ingest ─────────────────────────────────────────────────────────
+// ── Batch remember ────────────────────────────────────────────────
 
-export interface IngestDocument {
+export interface RememberBatchDocument {
   content: string;
   title?: string;
   source?: string;
@@ -409,13 +409,45 @@ export interface IngestDocument {
   source_name?: string;
   source_url?: string;
   metadata?: Record<string, unknown>;
+  /** Stable upstream identifier. Used for dedup across calls. */
+  external_id?: string;
 }
 
-export type IngestInput = NamespaceTarget & {
-  documents: IngestDocument[];
+export type RememberBatchInput = NamespaceTarget & {
+  documents: RememberBatchDocument[];
+  ontology_id?: string;
+  entity_types?: string[];
+  relationship_types?: string[];
 };
 
-export interface IngestProgressEvent {
+export interface RememberBatchDocumentResult {
+  document_id: string;
+  external_id?: string | null;
+  chunks_created: number;
+  entities_extracted: number;
+  relationships_created: number;
+  status: "ok" | "skipped" | "error";
+  error?: string;
+}
+
+export interface RememberBatchResult {
+  total: number;
+  processed: number;
+  skipped: number;
+  failed: number;
+  chunks: number;
+  entities: number;
+  relationships: number;
+  documents: RememberBatchDocumentResult[];
+}
+
+/** SSE event emitted during batch processing. */
+export interface RememberBatchProgressEvent {
   type: string;
   [key: string]: unknown;
+}
+
+export interface RememberBatchOptions extends RequestOptions {
+  /** Called for every SSE event (progress, status) during processing. */
+  onProgress?: (event: RememberBatchProgressEvent) => void;
 }

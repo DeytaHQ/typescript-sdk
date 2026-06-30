@@ -13,6 +13,9 @@ import type {
   NamespaceTarget,
   RecallInput,
   RecallResult,
+  RememberBatchInput,
+  RememberBatchOptions,
+  RememberBatchResult,
   RememberInput,
   RememberResult,
   RequestOptions,
@@ -68,6 +71,13 @@ export class NamespaceScope {
     opts?: RequestOptions,
   ): Promise<ForgetResult> {
     return this.memory.forget({ ...input, ...this.target } as ForgetInput, opts);
+  }
+
+  rememberBatch(
+    input: Omit<RememberBatchInput, keyof NamespaceTarget>,
+    opts?: RememberBatchOptions,
+  ): Promise<RememberBatchResult> {
+    return this.memory.rememberBatch({ ...input, ...this.target } as RememberBatchInput, opts);
   }
 
   // ── Namespace lifecycle ───────────────────────────────────────────

@@ -49,6 +49,14 @@ export function jsonPaginated<T>(data: T[], pagination: { has_more: boolean; nex
   });
 }
 
+export function sseOk(events: Record<string, unknown>[]): Response {
+  const body = events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("");
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+
 export function jsonError(status: number, code: string, message: string, headers?: Record<string, string>): Response {
   return new Response(
     JSON.stringify({ success: false, error: { code, message, status } }),

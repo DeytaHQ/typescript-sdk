@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { Deyta } from "../src/index.js";
-import { FetchMock, jsonOk } from "./_fetch-mock.js";
+import { FetchMock, jsonOk, sseOk } from "./_fetch-mock.js";
 
 function setup() {
   const mock = new FetchMock();
@@ -206,6 +206,140 @@ describe("Memory.ask", () => {
     const body = mock.requests[0]?.body as Record<string, unknown>;
     expect(body.start_time).toBe("2026-04-01T00:00:00.000Z");
     expect(body.config).toEqual({ max_recall_limit: 10 });
+  });
+});
+
+describe("Memory.rememberBatch", () => {
+  test("posts to /remember-batch and returns the result event", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      sseOk([
+        { type: "progress", processed: 0, total: 2 },
+        { type: "progress", processed: 1, total: 2 },
+        {
+          type: "result",
+          total: 2,
+          processed: 2,
+          skipped: 0,
+          failed: 0,
+          chunks: 4,
+          entities: 3,
+          relationships: 1,
+          documents: [
+            { document_id: "doc_1", chunks_created: 2, entities_extracted: 2, relationships_created: 1, status: "ok" },
+            { document_id: "doc_2", chunks_created: 2, entities_extracted: 1, relationships_created: 0, status: "ok" },
+          ],
+        },
+      ]),
+    );
+    const result = await deyta.memory.rememberBatch({
+      namespace_id: "ns_1",
+      documents: [
+        { content: "doc one" },
+        { content: "doc two" },
+      ],
+    });
+    expect(result.total).toBe(2);
+    expect(result.processed).toBe(2);
+    expect(result.chunks).toBe(4);
+    expect(result.documents).toHaveLength(2);
+    expect(mock.requests[0]?.url).toMatch(/\/api\/v1\/remember-batch$/);
+    expect(mock.requests[0]?.method).toBe("POST");
+    const body = mock.requests[0]?.body as Record<string, unknown>;
+    expect(body.namespace_id).toBe("ns_1");
+  });
+
+  test("calls onProgress for each SSE event", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      sseOk([
+        { type: "progress", processed: 0, total: 1 },
+        { type: "status", level: "INFO", message: "extracting" },
+        {
+          type: "result",
+          total: 1, processed: 1, skipped: 0, failed: 0,
+          chunks: 1, entities: 0, relationships: 0, documents: [],
+        },
+      ]),
+    );
+    const events: unknown[] = [];
+    await deyta.memory.rememberBatch(
+      { namespace_id: "ns_1", documents: [{ content: "hello" }] },
+      { onProgress: (e) => events.push(e) },
+    );
+    expect(events).toHaveLength(3);
+    expect((events[0] as { type: string }).type).toBe("progress");
+    expect((events[1] as { type: string }).type).toBe("status");
+    expect((events[2] as { type: string }).type).toBe("result");
+  });
+
+  test("throws DeytaError on SSE error event", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      sseOk([
+        { type: "progress", processed: 0, total: 1 },
+        { type: "error", detail: "namespace not found" },
+      ]),
+    );
+    await expect(
+      deyta.memory.rememberBatch({
+        namespace_id: "ns_1",
+        documents: [{ content: "hello" }],
+      }),
+    ).rejects.toThrow("namespace not found");
+  });
+
+  test("throws DeytaError when stream ends without result", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      sseOk([
+        { type: "progress", processed: 0, total: 1 },
+      ]),
+    );
+    await expect(
+      deyta.memory.rememberBatch({
+        namespace_id: "ns_1",
+        documents: [{ content: "hello" }],
+      }),
+    ).rejects.toThrow("Stream ended without a result event");
+  });
+
+  test("sends ontology_id, entity_types, and relationship_types", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      sseOk([{
+        type: "result",
+        total: 1, processed: 1, skipped: 0, failed: 0,
+        chunks: 1, entities: 1, relationships: 0, documents: [],
+      }]),
+    );
+    await deyta.memory.rememberBatch({
+      namespace_id: "ns_1",
+      documents: [{ content: "hello" }],
+      ontology_id: "onto_1",
+      entity_types: ["person"],
+      relationship_types: ["knows"],
+    });
+    const body = mock.requests[0]?.body as Record<string, unknown>;
+    expect(body.ontology_id).toBe("onto_1");
+    expect(body.entity_types).toEqual(["person"]);
+    expect(body.relationship_types).toEqual(["knows"]);
+  });
+
+  test("sends Accept: text/event-stream header", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() =>
+      sseOk([{
+        type: "result",
+        total: 0, processed: 0, skipped: 0, failed: 0,
+        chunks: 0, entities: 0, relationships: 0, documents: [],
+      }]),
+    );
+    await deyta.memory.rememberBatch({
+      namespace_id: "ns_1",
+      documents: [],
+    });
+    expect(mock.requests[0]?.headers.get("Accept")).toBe("text/event-stream");
   });
 });
 
