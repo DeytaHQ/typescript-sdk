@@ -6,6 +6,8 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-06-30
+
 ### Added
 - `Memory.rememberBatch()` — batch-ingest multiple documents in a single call. Consumes the SSE stream internally and resolves with an aggregate `RememberBatchResult`. Progress events are exposed via an `onProgress` callback in `RememberBatchOptions`.
 - Per-document `external_id` on `RememberBatchDocument` for cross-call dedup.
