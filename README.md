@@ -96,6 +96,46 @@ const result = await deyta.memory.remember({
 // result: { document_id, chunks_created, entities_extracted, relationships_created }
 ```
 
+### `rememberBatch`
+
+Ingest multiple documents in a single call. The method streams progress internally and resolves with the aggregate result:
+
+```ts
+const result = await deyta.memory.rememberBatch({
+  namespace_id: "ns_123",
+  documents: [
+    { content: "First document", title: "Doc 1" },
+    { content: "Second document", title: "Doc 2", external_id: "ext-2" },
+  ],
+  entity_types: ["person", "organization"],
+  relationship_types: ["works_at"],
+});
+// result: { total, processed, skipped, failed, chunks, entities, relationships, documents[] }
+```
+
+Per-document `external_id` enables dedup — re-submitting a document with the same `external_id` will skip it instead of creating a duplicate.
+
+Track progress with the `onProgress` callback:
+
+```ts
+const result = await deyta.memory.rememberBatch(
+  {
+    namespace_id: "ns_123",
+    documents: docs,
+  },
+  {
+    timeout: 300_000,
+    onProgress: (event) => {
+      if (event.type === "progress") {
+        console.log(`${event.processed}/${event.total} documents`);
+      }
+    },
+  },
+);
+```
+
+Also available on the namespace scope: `ns.rememberBatch({ documents: [...] })`.
+
 ### `recall`
 
 ```ts

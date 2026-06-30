@@ -6,6 +6,16 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Memory.rememberBatch()` — batch-ingest multiple documents in a single call. Consumes the SSE stream internally and resolves with an aggregate `RememberBatchResult`. Progress events are exposed via an `onProgress` callback in `RememberBatchOptions`.
+- Per-document `external_id` on `RememberBatchDocument` for cross-call dedup.
+- `ontology_id`, `entity_types`, and `relationship_types` fields on `RememberBatchInput`.
+- `NamespaceScope.rememberBatch()` — scoped shortcut that injects the namespace target automatically.
+- New types: `RememberBatchDocument`, `RememberBatchInput`, `RememberBatchResult`, `RememberBatchDocumentResult`, `RememberBatchProgressEvent`, `RememberBatchOptions`.
+
+### Removed
+- **Breaking** `Memory.ingest()` async generator and its types (`IngestDocument`, `IngestInput`, `IngestProgressEvent`) replaced by `rememberBatch()`.
+
 ## [0.7.0] — 2026-06-30
 
 ### Added
