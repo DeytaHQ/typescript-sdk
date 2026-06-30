@@ -6,6 +6,8 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-06-30
+
 ### Added
 - `Memory.ingest()` — SSE-streaming bulk document ingestion endpoint.
 - `Deyta.health()` — hits `/health` on the root URL (no `/api/v1` prefix).
