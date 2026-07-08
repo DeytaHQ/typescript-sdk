@@ -7,7 +7,22 @@ export type ErrorCode =
   | "INTERNAL_ERROR"
   | "BAD_GATEWAY"
   | "SERVICE_UNAVAILABLE"
-  | "GATEWAY_TIMEOUT";
+  | "GATEWAY_TIMEOUT"
+  // Returned when a request combines the legacy `from`/`until` bounds with a
+  // `filter` that also constrains the same time field.
+  | "FILTER_TIME_PARAMS_CONFLICT";
+
+/** A single field-level validation failure from the API error envelope. */
+export interface FieldError {
+  /** Dot-path to the offending field (e.g. `filter.occurred_at`). */
+  path: string;
+  /** Machine-readable sub-code for this field error. */
+  code: string;
+  /** Human-readable reason. */
+  message: string;
+  /** Allowed values when the failure is an enum/whitelist violation; null otherwise. */
+  allowed: string[] | null;
+}
 
 /**
  * Thrown when the API returns an error envelope or a non-2xx status.
@@ -17,12 +32,15 @@ export type ErrorCode =
 export class DeytaError extends Error {
   readonly code: ErrorCode;
   readonly status: number;
+  /** Per-field validation failures, when the envelope carried any. */
+  readonly errors?: FieldError[];
 
-  constructor(code: ErrorCode, message: string, status: number) {
+  constructor(code: ErrorCode, message: string, status: number, errors?: FieldError[]) {
     super(message);
     this.name = "DeytaError";
     this.code = code;
     this.status = status;
+    this.errors = errors;
   }
 }
 

@@ -1,4 +1,5 @@
-import type { ErrorCode } from "./errors.js";
+import type { ErrorCode, FieldError } from "./errors.js";
+import type { RecallFilter } from "./recall-filter.js";
 
 // ── Response envelopes ──────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ export interface ErrorResponseBody {
     code: ErrorCode;
     message: string;
     status: number;
+    errors?: FieldError[];
   };
 }
 
@@ -54,9 +56,9 @@ export type Target = { type: "namespace" | "persona" } & (
 export type TimeBound = Date | string;
 
 export interface TimeRange {
-  /** Inclusive lower bound on memory event time. */
+  /** Inclusive lower bound on event time. @deprecated Prefer `filter` with `occurred_at`/`created_at` predicates for explicit field-level control. Callers that relied on older windowed range semantics on some backends should express an equivalent `$or`/`$exists` filter rather than a bare `occurred_at` range. */
   from?: TimeBound;
-  /** Inclusive upper bound on memory event time. */
+  /** Exclusive upper bound on event time. @deprecated Prefer `filter` with `occurred_at`/`created_at` predicates for explicit field-level control. */
   until?: TimeBound;
 }
 
@@ -100,6 +102,8 @@ export type RecallInput = NamespaceTarget &
      * diagnostic blob. Defaults to false.
      */
     verbose?: boolean;
+    /** Structured filter narrowing results by system fields and metadata. */
+    filter?: RecallFilter;
   };
 
 /**
@@ -224,6 +228,8 @@ export type AskInput = NamespaceTarget &
     config?: AskConfig;
     /** When true, request verbose upstream diagnostics. Defaults to false. */
     verbose?: boolean;
+    /** Structured filter narrowing results by system fields and metadata. */
+    filter?: RecallFilter;
   };
 
 // ── Ask response ────────────────────────────────────────────────────
