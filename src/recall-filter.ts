@@ -164,7 +164,6 @@ export interface LogicalFilter {
  * with `$and`, `$or`, `$nor`, and `$not`.
  *
  * System-field, metadata, and logical keys may appear side by side in one
- * object; the server composes all sibling constraints with AND (Mongo
- * semantics).
+ * object; the server combines all sibling constraints with a logical AND.
  */
 export type RecallFilter = LeafFilter | LogicalFilter;
