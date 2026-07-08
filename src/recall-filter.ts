@@ -123,9 +123,10 @@ export interface SystemFieldFilters {
 }
 
 /**
- * A single filter object: any combination of system-field conditions plus
- * arbitrary `metadata.<key>` conditions. Metadata keys are open-ended — any
- * key prefixed with `metadata.` is accepted with a `MetadataCondition` value.
+ * A terminal (leaf) filter — the non-logical variant of {@link RecallFilter}:
+ * any combination of system-field conditions plus arbitrary `metadata.<key>`
+ * conditions. Metadata keys are open-ended — any key prefixed with `metadata.`
+ * is accepted with a `MetadataCondition` value.
  */
 export type LeafFilter = SystemFieldFilters &
   Partial<Record<`metadata.${string}`, MetadataCondition>>;
