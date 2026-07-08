@@ -156,7 +156,7 @@ describe("recall filter — accepted shapes (compile-time)", () => {
     const filters: RecallFilter[] = [
       { source_type: "connection" },
       { occurred_at: { $gte: "2026-01-01T00:00:00Z", $lt: new Date() } },
-      { title: { $like: "%report%", $exists: true } },
+      { title: { $ne: "draft", $exists: true } },
       { "metadata.priority": { $gte: 5 } },
       { $not: { source_name: { $in: ["granola", "slack"] } } },
     ];

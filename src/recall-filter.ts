@@ -1,9 +1,15 @@
 // Type-only module. Declares the structured filter surface used by `recall`
 // and `ask` to narrow results by document system fields and metadata. There is
 // no runtime code here — the SDK forwards `filter` to the API verbatim.
+//
+// Operator sets mirror the server's authoritative filter model (the string and
+// date operator vocabularies). Update this module when that model changes;
+// drift compiles here but fails with a 400 at runtime.
 
-/** A date-valued filter operand: an ISO-8601 string or a `Date`. */
-export type FilterDateValue = string | Date;
+import type { TimeBound } from "./types.js";
+
+/** A date-valued filter operand — same union as `TimeBound` (`Date | string`). */
+export type FilterDateValue = TimeBound;
 
 /** A scalar metadata operand. `null` matches an explicit null value. */
 export type FilterScalar = string | number | boolean | null;
@@ -11,7 +17,8 @@ export type FilterScalar = string | number | boolean | null;
 /**
  * Operators available on date-valued system fields (`occurred_at`,
  * `source_timestamp`, `created_at`). Comparisons order chronologically.
- * `$exists` checks presence/absence of the field.
+ * `$not` negates an enclosed predicate. `$exists` is intentionally not offered
+ * on date fields.
  */
 export interface DatePredicate {
   /** Equal to. */
@@ -30,15 +37,15 @@ export interface DatePredicate {
   $in?: FilterDateValue[];
   /** Matches none of the listed values. */
   $nin?: FilterDateValue[];
-  /** `true` requires the field to be present; `false` requires it absent. */
-  $exists?: boolean;
+  /** Negates the enclosed predicate for this field. */
+  $not?: DatePredicate;
 }
 
 /**
  * Operators available on string-valued system fields (`source_name`,
  * `source_type`, `source_url`, `external_id`, `content_type`, `source`,
- * `title`). `$like` performs a pattern match; ordering operators are not
- * offered on strings.
+ * `title`). Ordering operators are not offered on strings; `$not` negates an
+ * enclosed predicate.
  */
 export interface StringPredicate {
   /** Equal to. */
@@ -49,10 +56,10 @@ export interface StringPredicate {
   $in?: string[];
   /** Matches none of the listed values. */
   $nin?: string[];
-  /** Pattern match against the field value. */
-  $like?: string;
   /** `true` requires the field to be present; `false` requires it absent. */
   $exists?: boolean;
+  /** Negates the enclosed predicate for this field. */
+  $not?: StringPredicate;
 }
 
 /**
@@ -97,7 +104,7 @@ export type MetadataCondition = FilterScalar | FilterScalar[] | MetadataPredicat
 /**
  * The known system fields that can be filtered. Date fields accept
  * `DateCondition` (chronological operators); the rest accept `StringCondition`
- * (equality and pattern operators). A bare value is shorthand for `$eq`.
+ * (equality and set operators). A bare value is shorthand for `$eq`.
  */
 export interface SystemFieldFilters {
   /** Domain event time the document describes. */
@@ -133,13 +140,15 @@ export type LeafFilter = SystemFieldFilters &
 
 /**
  * A logical composition of sub-filters. Use exactly one operator per object:
- * `$and`/`$or` take a list of filters; `$not` negates a single filter.
+ * `$and`/`$or`/`$nor` take a list of filters; `$not` negates a single filter.
  */
 export interface LogicalFilter {
   /** All listed filters must match. */
   $and?: RecallFilter[];
   /** At least one listed filter must match. */
   $or?: RecallFilter[];
+  /** Matches when none of the listed sub-filters match. */
+  $nor?: RecallFilter[];
   /** The given filter must not match. */
   $not?: RecallFilter;
 }
@@ -152,9 +161,10 @@ export interface LogicalFilter {
  * as a bare value — shorthand for `$eq` — or as an operator predicate; the
  * available operators depend on the field kind (date vs string), while
  * `metadata.*` entries accept a permissive predicate. Combine multiple filters
- * with `$and`, `$or`, and `$not`.
+ * with `$and`, `$or`, `$nor`, and `$not`.
  *
- * Provide either field conditions or a single logical operator per object;
- * mixing the two in one object is not recommended.
+ * System-field, metadata, and logical keys may appear side by side in one
+ * object; the server composes all sibling constraints with AND (Mongo
+ * semantics).
  */
 export type RecallFilter = LeafFilter | LogicalFilter;

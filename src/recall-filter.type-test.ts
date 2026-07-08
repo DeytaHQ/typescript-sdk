@@ -31,6 +31,14 @@ const _negUnknownField: RecallFilter = { not_a_field: "x" };
 // @ts-expect-error wrong bare type for date field
 const _negWrongBareType: RecallFilter = { occurred_at: 123 };
 
+// `$like` is not part of the operator vocabulary (no such operator exists).
+// @ts-expect-error $like is not a valid operator on string fields
+const _negLikeOnString: RecallFilter = { title: { $like: "%report%" } };
+
+// `$exists` is deliberately not offered on date fields.
+// @ts-expect-error $exists invalid on date field
+const _negExistsOnDate: RecallFilter = { occurred_at: { $exists: true } };
+
 // ── Positive cases (each MUST compile) ──────────────────────────────
 
 // Bare-value shorthands.
@@ -40,7 +48,7 @@ const _posBareDateObj: RecallFilter = { occurred_at: new Date() };
 
 // Operator objects.
 const _posDatePredicate: RecallFilter = { created_at: { $gte: "2026-01-01", $lt: new Date() } };
-const _posStringPredicate: RecallFilter = { title: { $like: "%report%", $exists: true } };
+const _posStringPredicate: RecallFilter = { title: { $ne: "draft", $exists: true } };
 const _posStringIn: RecallFilter = { source_type: { $in: ["api", "connection"] } };
 
 // Metadata conditions.
@@ -54,3 +62,8 @@ const _posNested: RecallFilter = {
     { occurred_at: { $gte: new Date() } },
   ],
 };
+
+// Field-level negation and `$nor`.
+const _posFieldNotString: RecallFilter = { title: { $not: { $eq: "draft" } } };
+const _posFieldNotDate: RecallFilter = { occurred_at: { $not: { $gte: "2026-01-01T00:00:00Z" } } };
+const _posNor: RecallFilter = { $nor: [{ source_type: "api" }, { title: "x" }] };

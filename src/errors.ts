@@ -8,8 +8,9 @@ export type ErrorCode =
   | "BAD_GATEWAY"
   | "SERVICE_UNAVAILABLE"
   | "GATEWAY_TIMEOUT"
-  // Returned when a request combines the legacy `from`/`until` bounds with a
-  // `filter` that also constrains the same time field.
+  // Returned when a request supplies both a `filter` and the legacy
+  // `from`/`until` time bounds — they are mutually exclusive, regardless of
+  // which fields the filter constrains.
   | "FILTER_TIME_PARAMS_CONFLICT";
 
 /** A single field-level validation failure from the API error envelope. */

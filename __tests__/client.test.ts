@@ -275,7 +275,7 @@ describe("HttpClient — retries", () => {
     let calls = 0;
     mock.setHandler(() => {
       calls++;
-      if (calls === 1) return jsonError(429, "BAD_REQUEST", "rate limited", { "Retry-After": "0" });
+      if (calls === 1) return jsonError(429, "BAD_REQUEST", "rate limited", undefined, { "Retry-After": "0" });
       return jsonOk({ id: "ns_1" });
     });
     const start = Date.now();

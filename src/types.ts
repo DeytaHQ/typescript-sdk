@@ -116,7 +116,13 @@ export type RecallInput = NamespaceTarget &
      * diagnostic blob. Defaults to false.
      */
     verbose?: boolean;
-    /** Structured filter narrowing results by system fields and metadata. */
+    /**
+     * Structured filter narrowing results by system fields and metadata.
+     *
+     * Mutually exclusive with the deprecated `from`/`until` bounds: supplying
+     * both `filter` and `from`/`until` returns HTTP 400
+     * (`FILTER_TIME_PARAMS_CONFLICT`).
+     */
     filter?: RecallFilter;
   };
 
@@ -242,7 +248,13 @@ export type AskInput = NamespaceTarget &
     config?: AskConfig;
     /** When true, request verbose upstream diagnostics. Defaults to false. */
     verbose?: boolean;
-    /** Structured filter narrowing results by system fields and metadata. */
+    /**
+     * Structured filter narrowing results by system fields and metadata.
+     *
+     * Mutually exclusive with the deprecated `from`/`until` bounds: supplying
+     * both `filter` and `from`/`until` returns HTTP 400
+     * (`FILTER_TIME_PARAMS_CONFLICT`).
+     */
     filter?: RecallFilter;
   };
 

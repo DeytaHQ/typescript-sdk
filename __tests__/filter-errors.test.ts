@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { Deyta, DeytaError } from "../src/index.js";
 import type { FieldError } from "../src/index.js";
-import { FetchMock, jsonOk } from "./_fetch-mock.js";
+import { FetchMock, jsonOk, jsonError } from "./_fetch-mock.js";
 
 function setup() {
   const mock = new FetchMock();
@@ -11,23 +11,6 @@ function setup() {
     retries: { maxRetries: 0 },
   });
   return { deyta, mock };
-}
-
-/**
- * Build an error-envelope Response including the per-field `errors` array.
- * The shared `jsonError` helper doesn't carry `errors`, so we assemble the
- * envelope directly to mirror the wire shape the gateway emits.
- */
-function errorWithFields(
-  status: number,
-  code: string,
-  message: string,
-  errors?: FieldError[],
-): Response {
-  return new Response(
-    JSON.stringify({ success: false, error: { code, message, status, errors } }),
-    { status, headers: { "Content-Type": "application/json" } },
-  );
 }
 
 describe("filter error decode", () => {
@@ -42,7 +25,7 @@ describe("filter error decode", () => {
       },
     ];
     mock.setHandler(() =>
-      errorWithFields(
+      jsonError(
         400,
         "FILTER_TIME_PARAMS_CONFLICT",
         "filter conflicts with the supplied time range",
@@ -80,7 +63,7 @@ describe("filter error decode", () => {
       },
     ];
     mock.setHandler(() =>
-      errorWithFields(400, "BAD_REQUEST", "invalid filter", fieldErrors),
+      jsonError(400, "BAD_REQUEST", "invalid filter", fieldErrors),
     );
     try {
       await deyta.memory.ask({ namespace_id: "ns_1", query: "q" });
@@ -95,7 +78,7 @@ describe("filter error decode", () => {
   test("leaves errors undefined when the envelope carries none", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() =>
-      errorWithFields(400, "BAD_REQUEST", "plain bad request"),
+      jsonError(400, "BAD_REQUEST", "plain bad request"),
     );
     try {
       await deyta.memory.recall({ namespace_id: "ns_1", query: "q" });
@@ -117,7 +100,7 @@ describe("filter error decode", () => {
       { path: "name", code: "REQUIRED", message: "name is required", allowed: null },
     ];
     mock.setHandler(() =>
-      errorWithFields(400, "BAD_REQUEST", "validation failed", fieldErrors),
+      jsonError(400, "BAD_REQUEST", "validation failed", fieldErrors),
     );
     try {
       await deyta.namespaces.create({ name: "" });

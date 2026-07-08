@@ -6,13 +6,11 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.8.0] — 2026-07-08
-
 ### Added
-- Structured `filter` on `RecallInput` and `AskInput` — narrows results by document system fields and metadata. Ten system fields are filterable (`occurred_at`, `source_timestamp`, `created_at`, `source_name`, `source_type`, `source_url`, `external_id`, `content_type`, `source`, `title`) with kind-specific operators: date fields accept chronological operators (`$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin`, `$exists`) while string fields accept `$eq`, `$ne`, `$in`, `$nin`, `$like`, `$exists`. Arbitrary `metadata.<key>` entries accept a permissive predicate. Filters combine with `$and`, `$or`, and `$not`. A bare field value is shorthand for `$eq`.
+- Structured `filter` on `RecallInput` and `AskInput` — narrows results by document system fields and metadata. Ten system fields are filterable (`occurred_at`, `source_timestamp`, `created_at`, `source_name`, `source_type`, `source_url`, `external_id`, `content_type`, `source`, `title`) with kind-specific operators: date fields accept chronological operators (`$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin`, `$not`) while string fields accept `$eq`, `$ne`, `$in`, `$nin`, `$exists`, `$not`. Arbitrary `metadata.<key>` entries accept a permissive predicate. Filters combine with `$and`, `$or`, `$nor`, and `$not`. A bare field value is shorthand for `$eq`.
 - New exported types: `RecallFilter`, `LeafFilter`, `LogicalFilter`, `SystemFieldFilters`, `DatePredicate`, `StringPredicate`, `MetadataPredicate`, `DateCondition`, `StringCondition`, `MetadataCondition`, `FilterDateValue`, `FilterScalar`.
 - `FieldError` type and `DeytaError.errors?: FieldError[]` — per-field validation failures are now surfaced on the thrown error when the API error envelope carries them.
-- `FILTER_TIME_PARAMS_CONFLICT` error code — returned when a request combines the legacy `from`/`until` bounds with a `filter` that also constrains the same time field.
+- `FILTER_TIME_PARAMS_CONFLICT` error code — returned when a request supplies both a `filter` and the legacy `from`/`until` bounds (mutually exclusive).
 
 ### Deprecated
 - `TimeRange.from` / `TimeRange.until` — prefer `filter` with `occurred_at`/`created_at` predicates for explicit field-level control. Note that `until` is an exclusive upper bound.
