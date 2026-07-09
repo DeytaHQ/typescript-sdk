@@ -210,6 +210,19 @@ export interface RecallUsageEvent {
  * Operator-owned diagnostic blob. Permissive shape — content varies per
  * engine. Only present in the response when the recall request set
  * `verbose: true`.
+ *
+ * The blob may include a `filter` report describing how a structured
+ * `filter` was applied. When present, that report's `channels` is an open
+ * map keyed by channel name (for example entity, recency, or keyword
+ * channels) — new channels may appear over time — and its `unenforced_keys`
+ * is a list of strings that MAY be non-empty when some filter keys could not
+ * be pushed down to the engine. None of these fields is guaranteed to be
+ * present.
+ *
+ * This type is deliberately left as an open `Record<string, unknown>` so
+ * that backend additions — new channels, or fields that become populated in
+ * more cases — require no SDK type change. Inspect specific keys at the call
+ * site (narrowing as needed) rather than relying on a fixed shape here.
  */
 export type EngineInfo = Record<string, unknown>;
 

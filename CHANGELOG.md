@@ -12,6 +12,9 @@ All notable changes to `@deyta-ai/sdk` are documented here. The format follows
 - `FieldError` type and `DeytaError.errors?: FieldError[]` — per-field validation failures are now surfaced on the thrown error when the API error envelope carries them.
 - `FILTER_TIME_PARAMS_CONFLICT` error code — returned when a request supplies both a `filter` and the legacy `from`/`until` bounds (mutually exclusive).
 
+### Changed
+- Clarified the documented shape of the `engine_info` diagnostic blob (returned when a recall request sets `verbose: true`): its optional `filter` report exposes an open `channels` map keyed by channel name and an `unenforced_keys` string list that may be non-empty. `EngineInfo` remains an open `Record<string, unknown>`, so newly reported channels and newly populated fields require no SDK type change.
+
 ### Deprecated
 - `TimeRange.from` / `TimeRange.until` — prefer `filter` with `occurred_at`/`created_at` predicates for explicit field-level control. Note that `until` is an exclusive upper bound.
 
