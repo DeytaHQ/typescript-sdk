@@ -145,7 +145,7 @@ const result = await deyta.memory.recall({
   limit: 10,
   mode: "hybrid",                              // "vector" | "graph" | "hybrid" | "all"
   from: new Date("2026-04-01T00:00:00Z"),      // Optional inclusive lower bound on event time
-  until: "2026-04-30T23:59:59Z",               // Optional inclusive upper bound (Date | ISO string)
+  until: "2026-04-30T23:59:59Z",               // Optional exclusive upper bound — the boundary instant is excluded (Date | ISO string)
 });
 // result: { query, namespace_id, documents, chunks, entities, relationships, usage, engine_info? }
 // Pass `verbose: true` to include the optional `engine_info` diagnostic blob.

@@ -384,7 +384,7 @@ function errorReason(err: unknown): string {
 }
 
 function throwFromBody(json: ErrorResponseBody): never {
-  throw new DeytaError(json.error.code, json.error.message, json.error.status);
+  throw new DeytaError(json.error.code, json.error.message, json.error.status, json.error.errors);
 }
 
 async function throwFromResponse(response: Response): Promise<never> {
@@ -396,7 +396,7 @@ async function throwFromResponse(response: Response): Promise<never> {
     // Fall through to synthetic.
   }
   if (body?.error) {
-    throw new DeytaError(body.error.code, body.error.message, body.error.status);
+    throw new DeytaError(body.error.code, body.error.message, body.error.status, body.error.errors);
   }
   throw new DeytaError(
     statusToCode(response.status),

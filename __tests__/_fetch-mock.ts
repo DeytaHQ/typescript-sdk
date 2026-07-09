@@ -1,3 +1,5 @@
+import type { FieldError } from "../src/index.js";
+
 export interface RecordedRequest {
   method: string;
   url: string;
@@ -57,9 +59,15 @@ export function sseOk(events: Record<string, unknown>[]): Response {
   });
 }
 
-export function jsonError(status: number, code: string, message: string, headers?: Record<string, string>): Response {
+export function jsonError(
+  status: number,
+  code: string,
+  message: string,
+  errors?: FieldError[],
+  headers?: Record<string, string>,
+): Response {
   return new Response(
-    JSON.stringify({ success: false, error: { code, message, status } }),
+    JSON.stringify({ success: false, error: { code, message, status, errors } }),
     {
       status,
       headers: { "Content-Type": "application/json", ...(headers ?? {}) },

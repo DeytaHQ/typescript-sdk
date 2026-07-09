@@ -1,4 +1,5 @@
-import type { ErrorCode } from "./errors.js";
+import type { ErrorCode, FieldError } from "./errors.js";
+import type { RecallFilter } from "./recall-filter.js";
 
 // ── Response envelopes ──────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ export interface ErrorResponseBody {
     code: ErrorCode;
     message: string;
     status: number;
+    errors?: FieldError[];
   };
 }
 
@@ -54,9 +56,23 @@ export type Target = { type: "namespace" | "persona" } & (
 export type TimeBound = Date | string;
 
 export interface TimeRange {
-  /** Inclusive lower bound on memory event time. */
+  /**
+   * Inclusive lower bound on event time.
+   *
+   * @deprecated Prefer `filter` with `occurred_at`/`created_at` predicates for
+   * explicit field-level control — e.g. replace `{ from: new Date("2026-01-01") }`
+   * with `{ filter: { occurred_at: { $gte: "2026-01-01T00:00:00Z" } } }`. Callers
+   * that relied on older windowed range semantics on some backends should express
+   * an equivalent `$or`/`$exists` filter rather than a bare `occurred_at` range.
+   */
   from?: TimeBound;
-  /** Inclusive upper bound on memory event time. */
+  /**
+   * Exclusive upper bound on event time (the boundary instant itself is excluded).
+   *
+   * @deprecated Prefer `filter` with `occurred_at`/`created_at` predicates for
+   * explicit field-level control — e.g. replace `{ until: new Date("2026-02-01") }`
+   * with `{ filter: { occurred_at: { $lt: "2026-02-01T00:00:00Z" } } }`.
+   */
   until?: TimeBound;
 }
 
@@ -100,6 +116,14 @@ export type RecallInput = NamespaceTarget &
      * diagnostic blob. Defaults to false.
      */
     verbose?: boolean;
+    /**
+     * Structured filter narrowing results by system fields and metadata.
+     *
+     * Mutually exclusive with the deprecated `from`/`until` bounds: supplying
+     * both `filter` and `from`/`until` returns HTTP 400
+     * (`FILTER_TIME_PARAMS_CONFLICT`).
+     */
+    filter?: RecallFilter;
   };
 
 /**
@@ -224,6 +248,14 @@ export type AskInput = NamespaceTarget &
     config?: AskConfig;
     /** When true, request verbose upstream diagnostics. Defaults to false. */
     verbose?: boolean;
+    /**
+     * Structured filter narrowing results by system fields and metadata.
+     *
+     * Mutually exclusive with the deprecated `from`/`until` bounds: supplying
+     * both `filter` and `from`/`until` returns HTTP 400
+     * (`FILTER_TIME_PARAMS_CONFLICT`).
+     */
+    filter?: RecallFilter;
   };
 
 // ── Ask response ────────────────────────────────────────────────────

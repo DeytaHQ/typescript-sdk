@@ -7,7 +7,22 @@ export type {
   SdkLogger,
 } from "./client.js";
 export { DeytaError, DeytaConnectionError } from "./errors.js";
-export type { ErrorCode } from "./errors.js";
+export type { ErrorCode, FieldError } from "./errors.js";
+export type {
+  // Recall/ask filter surface
+  RecallFilter,
+  LeafFilter,
+  LogicalFilter,
+  SystemFieldFilters,
+  DatePredicate,
+  StringPredicate,
+  MetadataPredicate,
+  DateCondition,
+  StringCondition,
+  MetadataCondition,
+  FilterDateValue,
+  FilterScalar,
+} from "./recall-filter.js";
 export {
   NamespaceScope,
   NamespaceIntegrationsScope,
