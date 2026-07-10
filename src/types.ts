@@ -215,8 +215,10 @@ export interface RecallUsageEvent {
  * `filter` was applied. When present, that report's `channels` is an open
  * map keyed by channel name (for example entity, recency, or keyword
  * channels) — new channels may appear over time — and its `unenforced_keys`
- * is a list of strings that MAY be non-empty when some filter keys could not
- * be pushed down to the engine. None of these fields is guaranteed to be
+ * is a list of strings that MAY be non-empty when a filter key was not
+ * enforced by any channel (a key that merely could not be pushed down is
+ * still enforced via in-memory post-filtering and appears in
+ * `post_filtered_keys` instead). None of these fields is guaranteed to be
  * present.
  *
  * This type is deliberately left as an open `Record<string, unknown>` so
