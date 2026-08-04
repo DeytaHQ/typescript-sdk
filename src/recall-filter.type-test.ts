@@ -83,6 +83,10 @@ const _posMetaBare: RecallFilter = { "metadata.x": "y" };
 // test the stored value against a set of candidates. Both forms compile, so
 // this pins the accepted type surface, not the match semantics.
 const _posMetaBareArrayEq: RecallFilter = { "metadata.tags": ["a", "b"] };
+// The empty array is part of the documented contract — it means the stored
+// value must equal the empty list. Narrowing the union to non-empty arrays
+// would break that with no other test failing.
+const _posMetaBareEmptyArray: RecallFilter = { "metadata.tags": [] };
 const _posMetaInMembership: RecallFilter = { "metadata.tags": { $in: ["a", "b"] } };
 
 // Counterparts to the `$eq`/`$ne` tripwires above. Those directives only
