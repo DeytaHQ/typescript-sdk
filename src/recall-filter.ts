@@ -69,9 +69,15 @@ export interface StringPredicate {
  * number, or boolean.
  */
 export interface MetadataPredicate {
-  /** Equal to. */
+  /**
+   * Equal to. Takes a scalar — to compare against a whole list, use the
+   * bare-array form (`{ "metadata.tags": ["a", "b"] }`).
+   */
   $eq?: FilterScalar;
-  /** Not equal to. */
+  /**
+   * Not equal to. Takes a scalar; negating whole-list equality at the field
+   * level is not currently expressible.
+   */
   $ne?: FilterScalar;
   /** Matches any of the listed values. */
   $in?: FilterScalar[];
@@ -96,8 +102,13 @@ export type DateCondition = FilterDateValue | DatePredicate;
 export type StringCondition = string | StringPredicate;
 
 /**
- * A condition on a metadata entry: a bare scalar (`$eq` shorthand), an array
- * (`$in` shorthand), or a predicate.
+ * A condition on a metadata entry: a bare scalar (`$eq` shorthand), a bare
+ * array, or a predicate. A bare array is compared as a single value — the
+ * stored value must equal that array; it is neither a membership test nor a
+ * contains-all test. Use `$in` to test the stored value against a set of
+ * candidates. An empty array means the stored value must equal the empty
+ * list; it is not a match-nothing filter. Whether the comparison is
+ * order-sensitive follows the server's equality semantics.
  */
 export type MetadataCondition = FilterScalar | FilterScalar[] | MetadataPredicate;
 
@@ -147,9 +158,17 @@ export interface LogicalFilter {
   $and?: RecallFilter[];
   /** At least one listed filter must match. */
   $or?: RecallFilter[];
-  /** Matches when none of the listed sub-filters match. */
+  /**
+   * Matches when none of the listed sub-filters match. Negating a bare-array
+   * condition negates whole-list equality, so documents holding a subset of
+   * those values still match.
+   */
   $nor?: RecallFilter[];
-  /** The given filter must not match. */
+  /**
+   * The given filter must not match. Negating a bare-array condition negates
+   * whole-list equality, so documents holding a subset of those values still
+   * match.
+   */
   $not?: RecallFilter;
 }
 
@@ -160,8 +179,10 @@ export interface LogicalFilter {
  * single logical operator (a {@link LogicalFilter}). Field values may be given
  * as a bare value — shorthand for `$eq` — or as an operator predicate; the
  * available operators depend on the field kind (date vs string), while
- * `metadata.*` entries accept a permissive predicate. Combine multiple filters
- * with `$and`, `$or`, `$nor`, and `$not`.
+ * `metadata.*` entries accept a permissive predicate. A bare array on a
+ * `metadata.*` entry is compared as a single value: the stored value must
+ * equal that array, so it is neither a membership test nor a contains-all
+ * test. Combine multiple filters with `$and`, `$or`, `$nor`, and `$not`.
  *
  * System-field, metadata, and logical keys may appear side by side in one
  * object; the server combines all sibling constraints with a logical AND.

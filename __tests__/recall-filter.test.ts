@@ -63,6 +63,36 @@ describe("recall filter — wire shape", () => {
     expect(body.filter).toEqual(filter);
   });
 
+  test("forwards a bare metadata array verbatim (no $in rewriting)", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => emptyRecall());
+    const filter: RecallFilter = { "metadata.tags": ["a", "b"] };
+    await deyta.memory.recall({ namespace_id: "ns_1", query: "q", filter });
+    const body = mock.requests[0]?.body as Record<string, unknown>;
+    // The array reaches the API as an array. A bare array means equality on
+    // the whole list, so rewriting it to `{ $in: [...] }` client-side would
+    // silently turn an exact-list match into a membership test.
+    expect(body.filter).toEqual({ "metadata.tags": ["a", "b"] });
+  });
+
+  test("forwards edge-shaped metadata arrays without normalizing them", async () => {
+    const { deyta, mock } = setup();
+    // An empty array and a mixed-scalar array both type-check. Neither may be
+    // dropped, padded, or coerced on the way out: under whole-list equality
+    // `[]` asks for a stored value equal to the empty list, which is a
+    // different query from omitting the key entirely.
+    const shapes: RecallFilter[] = [
+      { "metadata.tags": [] },
+      { "metadata.tags": ["a", null] },
+    ];
+    for (const filter of shapes) {
+      mock.setHandler(() => emptyRecall());
+      await deyta.memory.recall({ namespace_id: "ns_1", query: "q", filter });
+    }
+    expect(mock.requests[0]?.body).toMatchObject({ filter: { "metadata.tags": [] } });
+    expect(mock.requests[1]?.body).toMatchObject({ filter: { "metadata.tags": ["a", null] } });
+  });
+
   test("forwards a nested logical filter verbatim", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() => emptyRecall());
@@ -185,5 +215,33 @@ describe.skip("recall filter — live gateway round-trip", () => {
     for (const doc of result.documents) {
       expect(doc.source_type).toBe("connection");
     }
+  });
+
+  test("a bare metadata array matches the whole list, not any one member", async () => {
+    const deyta = new Deyta({ apiKey: process.env.DEYTA_API_KEY });
+    // Seed a document whose stored `tags` is exactly ["a", "b"].
+    const seeded = await deyta.memory.remember({
+      external_id: "live-namespace",
+      content: "bare-array filter probe",
+      metadata: { tags: ["a", "b"] },
+    });
+    const idsFor = async (filter: RecallFilter) => {
+      const result = await deyta.memory.recall({
+        external_id: "live-namespace",
+        query: "bare-array filter probe",
+        filter,
+      });
+      return result.documents.map((doc) => doc.id);
+    };
+    // The whole list matches. If the gateway indexes asynchronously this
+    // assertion fails rather than passing vacuously, so indexing lag shows up
+    // as a red test — insert a wait here if that happens.
+    expect(await idsFor({ "metadata.tags": ["a", "b"] })).toContain(seeded.document_id);
+    // A single member does NOT match: a bare array is equality against the
+    // entire list, not a membership test. This is the claim the
+    // `MetadataCondition` doc-comment makes, and the only check that can
+    // actually settle it — everything else in this file verifies the SDK
+    // forwards the array unchanged, not how the server reads it.
+    expect(await idsFor({ "metadata.tags": ["a"] })).not.toContain(seeded.document_id);
   });
 });
