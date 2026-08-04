@@ -96,8 +96,10 @@ export type DateCondition = FilterDateValue | DatePredicate;
 export type StringCondition = string | StringPredicate;
 
 /**
- * A condition on a metadata entry: a bare scalar (`$eq` shorthand), an array
- * (`$in` shorthand), or a predicate.
+ * A condition on a metadata entry: a bare scalar (`$eq` shorthand), a bare
+ * array (also `$eq`, against the whole list — the stored value must equal
+ * the list exactly), or a predicate. Membership tests need an explicit
+ * `$in`.
  */
 export type MetadataCondition = FilterScalar | FilterScalar[] | MetadataPredicate;
 
@@ -160,8 +162,10 @@ export interface LogicalFilter {
  * single logical operator (a {@link LogicalFilter}). Field values may be given
  * as a bare value — shorthand for `$eq` — or as an operator predicate; the
  * available operators depend on the field kind (date vs string), while
- * `metadata.*` entries accept a permissive predicate. Combine multiple filters
- * with `$and`, `$or`, `$nor`, and `$not`.
+ * `metadata.*` entries accept a permissive predicate. A bare array on a
+ * `metadata.*` entry matches the whole list exactly, not any one member; use
+ * `$in` to test membership. Combine multiple filters with `$and`, `$or`,
+ * `$nor`, and `$not`.
  *
  * System-field, metadata, and logical keys may appear side by side in one
  * object; the server combines all sibling constraints with a logical AND.

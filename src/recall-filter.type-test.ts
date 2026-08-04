@@ -39,6 +39,16 @@ const _negLikeOnString: RecallFilter = { title: { $like: "%report%" } };
 // @ts-expect-error $exists invalid on date field
 const _negExistsOnDate: RecallFilter = { occurred_at: { $exists: true } };
 
+// Known gap, not a designed constraint: `$eq` and `$ne` take a scalar
+// operand, so array equality is expressible only via the bare-array form
+// and negated array equality not at all. If either operand is widened these
+// directives fail — update the `$eq`/`$ne` operand docs on
+// `MetadataPredicate` at the same time.
+// @ts-expect-error $eq does not accept an array operand
+const _negMetaEqArray: RecallFilter = { "metadata.tags": { $eq: ["a", "b"] } };
+// @ts-expect-error $ne does not accept an array operand
+const _negMetaNeArray: RecallFilter = { "metadata.tags": { $ne: ["a", "b"] } };
+
 // ── Positive cases (each MUST compile) ──────────────────────────────
 
 // Bare-value shorthands.
@@ -54,6 +64,13 @@ const _posStringIn: RecallFilter = { source_type: { $in: ["api", "connection"] }
 // Metadata conditions.
 const _posMetaPredicate: RecallFilter = { "metadata.priority": { $gte: 5 } };
 const _posMetaBare: RecallFilter = { "metadata.x": "y" };
+
+// A bare array on a metadata entry matches the whole list exactly — it
+// matches documents whose stored value equals `["a", "b"]`, not documents
+// tagged "a" or "b". Membership is the explicit `$in` below. Both forms
+// compile, so this pins the accepted type surface, not the match semantics.
+const _posMetaBareArrayEq: RecallFilter = { "metadata.tags": ["a", "b"] };
+const _posMetaInMembership: RecallFilter = { "metadata.tags": { $in: ["a", "b"] } };
 
 // Nested logical composition.
 const _posNested: RecallFilter = {

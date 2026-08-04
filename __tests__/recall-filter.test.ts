@@ -63,6 +63,18 @@ describe("recall filter — wire shape", () => {
     expect(body.filter).toEqual(filter);
   });
 
+  test("forwards a bare metadata array verbatim (no $in rewriting)", async () => {
+    const { deyta, mock } = setup();
+    mock.setHandler(() => emptyRecall());
+    const filter: RecallFilter = { "metadata.tags": ["a", "b"] };
+    await deyta.memory.recall({ namespace_id: "ns_1", query: "q", filter });
+    const body = mock.requests[0]?.body as Record<string, unknown>;
+    // The array reaches the API as an array. A bare array means equality on
+    // the whole list, so rewriting it to `{ $in: [...] }` client-side would
+    // silently turn an exact-list match into a membership test.
+    expect(body.filter).toEqual({ "metadata.tags": ["a", "b"] });
+  });
+
   test("forwards a nested logical filter verbatim", async () => {
     const { deyta, mock } = setup();
     mock.setHandler(() => emptyRecall());
