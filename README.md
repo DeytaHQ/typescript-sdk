@@ -1,5 +1,8 @@
 # @deyta-ai/sdk
 
+> [!WARNING]
+> **Archived.** This repository and the `@deyta-ai/sdk` npm package are no longer maintained. Existing versions remain installable, but no further updates or fixes will be released.
+
 TypeScript SDK for the [Deyta](https://deyta.ai) platform — memory operations, namespace management, and integrations.
 
 Zero runtime dependencies. Native `fetch`. Ships ESM and CJS. Recommended runtime: [Bun](https://bun.sh) or Node 20+.
